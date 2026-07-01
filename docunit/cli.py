@@ -145,6 +145,8 @@ def cmd_status(args: argparse.Namespace) -> int:
     model = status_mod.build_status(DOCUMENTS_DIR)
     if args.format == "json":
         text = status_mod.render_json(model)
+    elif args.format == "html":
+        text = status_mod.render_html(model)
     else:
         text = status_mod.render_markdown(model, summary=args.summary)
     if args.out:
@@ -179,7 +181,7 @@ def main(argv: list[str] | None = None) -> int:
     r.set_defaults(func=cmd_rtm)
 
     s = sub.add_parser("status", help="Derive a project status page from the documents.")
-    s.add_argument("--format", choices=["md", "json"], default="md",
+    s.add_argument("--format", choices=["md", "json", "html"], default="md",
                    help="Output format (default: md).")
     s.add_argument("--summary", action="store_true",
                    help="Condensed markdown (RAG + signals, no inventory table).")

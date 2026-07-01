@@ -55,6 +55,29 @@ from the same graph — traceability you can see, derived rather than authored.
 The rules (required links, coverage, alignment prompts) live in
 `consistency.yaml`, so an org tunes them without touching code.
 
+## Project status (derived)
+
+`docunit status` produces a status view computed entirely from the documents —
+no self-reported RAG. It reads every document's validity, the traceability
+coverage, the open risks, and derives its own health: **red** = something is
+objectively broken (a failing approved document or a dangling link), **amber** =
+carrying risk or coverage gaps, **green** = clean.
+
+```bash
+docunit status                       # markdown to stdout
+docunit status --format md  --out STATUS.md    # the committed snapshot
+docunit status --format json                    # machine-readable
+docunit status --format html --out index.html  # a self-contained dashboard
+```
+
+Three ways it stays live:
+
+1. **`STATUS.md`** in the repo (regenerate with the command above).
+2. **A `status` CI job** posts the derived RAG + signals to every pull request.
+3. **A Pages dashboard** — `.github/workflows/status-pages.yml` builds
+   `docunit status --format html` and publishes it on every push to `main`.
+   One-time setup: Settings → Pages → Source: **GitHub Actions**.
+
 ## How it works
 
 ```
