@@ -239,6 +239,46 @@ def check_raci_one_accountable(doc: Document, ctx: dict) -> tuple[bool, str]:
     return True, f"All {len(data)} activities have exactly one Accountable role."
 
 
+def check_story_format(doc: Document, ctx: dict) -> tuple[bool, str]:
+    """Every US item follows 'As a … I want … so that …'."""
+    bad, total = [], 0
+    for iid, text in _items_of_prefix(doc, ctx, "US"):
+        total += 1
+        low = text.lower()
+        if not (("as a " in low or "as an " in low) and "i want" in low):
+            bad.append(iid)
+    if bad:
+        return False, "stories not in 'As a … I want …' form: " + ", ".join(bad)
+    return True, f"All {total} user story(ies) follow the standard form."
+
+
+def check_measurable_exit_criteria(doc: Document, ctx: dict) -> tuple[bool, str]:
+    """Every Exit Criteria bullet states a measurable threshold."""
+    section = doc.section("Exit Criteria")
+    if section is None:
+        return False, "No Exit Criteria section."
+    items = section.list_items
+    if not items:
+        return False, "Exit Criteria has no bulleted criteria."
+    unmeasurable = [it for it in items if not _is_measurable(it)]
+    if unmeasurable:
+        preview = "; ".join(f'“{u[:50]}”' for u in unmeasurable)
+        return False, f"{len(unmeasurable)}/{len(items)} exit criteria lack a measurable threshold: {preview}"
+    return True, f"All {len(items)} exit criteria state a measurable threshold."
+
+
+def check_has_mapping_table(doc: Document, ctx: dict) -> tuple[bool, str]:
+    """The Field Mapping section contains a table with at least one row."""
+    section = doc.section("Field Mapping")
+    if section is None:
+        return False, "No Field Mapping section."
+    rows = [ln.strip() for ln in section.body.splitlines() if ln.strip().startswith("|")]
+    data = [r for r in rows if "---" not in r][1:]
+    if not data:
+        return False, "Field Mapping has no mapping table rows."
+    return True, f"Field Mapping table has {len(data)} row(s)."
+
+
 CHECKS: dict[str, Callable[[Document, dict], tuple[bool, str]]] = {
     "frontmatter-schema": check_frontmatter_schema,
     "required-sections": check_required_sections,
@@ -250,6 +290,9 @@ CHECKS: dict[str, Callable[[Document, dict], tuple[bool, str]]] = {
     "risk-items-complete": check_risk_items_complete,
     "adr-items-have-status": check_adr_items_have_status,
     "raci-one-accountable": check_raci_one_accountable,
+    "story-format": check_story_format,
+    "measurable-exit-criteria": check_measurable_exit_criteria,
+    "mapping-table": check_has_mapping_table,
 }
 
 
