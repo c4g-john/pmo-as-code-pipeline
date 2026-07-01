@@ -5,6 +5,7 @@ code: MER
 name: Project Meridian — Field Service App Rollout
 sponsor: priya.nair
 status: proposed
+profile: lean-startup
 ---
 
 ## Overview

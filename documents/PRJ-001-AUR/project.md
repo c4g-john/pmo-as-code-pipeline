@@ -5,6 +5,7 @@ code: AUR
 name: Aurora — Customer Onboarding Overhaul
 sponsor: jordan.lee
 status: active
+profile: regulated-industry
 ---
 
 ## Overview

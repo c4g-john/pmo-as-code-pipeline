@@ -92,8 +92,11 @@ def test_build_status_scoped_to_one_project():
     # coverage counts only Atlas' own business requirements
     brs = next(c for c in m["coverage"] if "business requirement" in c["label"])
     assert brs["total"] == 2
-    # Atlas carries no open risks → green
-    assert m["risks"] == [] and m["rag"] == "green"
+    assert m["risks"] == []
+    # Atlas is on the lean-startup profile with its required docs still proposed
+    # (not approved) → incomplete → amber, even with no open risks.
+    assert m["completeness"]["profile"] == "lean-startup"
+    assert m["rag"] == "amber"
 
 
 def test_build_status_scopes_risks_to_that_project():
@@ -108,7 +111,7 @@ def test_build_index_one_card_per_project():
     by_code = {c["code"]: c for c in idx["projects"]}
     assert set(by_code) == {"AUR", "ATL", "MER", "PHX"}
     assert by_code["AUR"]["rag"] == "amber" and by_code["AUR"]["risks"] == 2
-    assert by_code["ATL"]["rag"] == "green"
+    assert by_code["ATL"]["rag"] == "amber"  # required docs still incomplete
     assert idx["overall"]["rag"] == "amber"
 
 
@@ -124,5 +127,5 @@ def test_render_project_page_has_back_link_and_scoped_title():
     _cd_root()
     out = S.render_html(S.build_status(ROOT / "documents", project="PRJ-002-ATL"))
     assert 'href="index.html"' in out          # back to the portfolio index
-    assert "Atlas" in out and "GREEN" in out
+    assert "Atlas" in out and "AMBER" in out
     assert "http://" not in out and "https://" not in out

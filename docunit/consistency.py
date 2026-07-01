@@ -97,6 +97,37 @@ def check_coverage(graph, config) -> CheckResult:
                        " · ".join(parts) if parts else "All approved items are covered.")
 
 
+def check_profile_completeness(documents_dir: str | Path = "documents") -> CheckResult:
+    """Every profiled project must carry the documents its profile requires.
+
+    Blocks when an *enforced* (e.g. active) project is missing a required kind,
+    or names a profile that doesn't exist. Projects not yet enforced (e.g.
+    proposed) surface their gaps as advisory only.
+    """
+    from . import status as status_mod
+    report = status_mod.completeness_report(documents_dir)
+    blockers, unknowns, advisories = [], [], []
+    for r in report:
+        if r.get("unknown"):
+            unknowns.append(f"{r['id']} → unknown profile '{r['profile']}'")
+        elif r["blocks"]:
+            blockers.append(f"{r['id']} ({r['profile']}) missing required: "
+                            + ", ".join(r["missing_required"]))
+        elif r["missing_required"] or r["incomplete_required"]:
+            n = len(r["missing_required"]) + len(r["incomplete_required"])
+            advisories.append(f"{r['id']} ({n} not yet complete)")
+    parts = []
+    if blockers:
+        parts.append("active projects missing required documents: " + "; ".join(blockers))
+    if unknowns:
+        parts.append("unknown profiles: " + "; ".join(unknowns))
+    if advisories:
+        parts.append(f"{len(advisories)} project(s) with advisory gaps (not enforced yet)")
+    return CheckResult("profile-completeness", not blockers and not unknowns, True,
+                       " · ".join(parts) if parts else
+                       "All profiled projects carry their required documents.")
+
+
 # ── semantic (advisory) ────────────────────────────────────────────────────
 def run_alignment_checks(graph, config) -> list[CheckResult]:
     edges = []  # (prompt, parent, child, relation)
@@ -128,6 +159,7 @@ def run_consistency(documents_dir: str | Path = "documents",
         check_referential_integrity(graph),
         check_required_links(graph, config),
         check_coverage(graph, config),
+        check_profile_completeness(documents_dir),
     ]
     if with_semantic:
         results.extend(run_alignment_checks(graph, config))

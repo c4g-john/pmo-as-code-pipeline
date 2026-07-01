@@ -23,6 +23,10 @@
       "minLength": 2,
       "description": "The accountable individual. A name or handle, not a team."
     },
-    "status": { "enum": ["proposed", "active", "on-hold", "closed"] }
+    "status": { "enum": ["proposed", "active", "on-hold", "closed"] },
+    "profile": {
+      "type": "string",
+      "description": "Optional. Names a profiles/<name>.yaml that defines this project's expected document set (required/recommended kinds)."
+    }
   }
 }

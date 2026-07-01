@@ -5,6 +5,7 @@ code: PHX
 name: Project Phoenix — Support Response Overhaul
 sponsor: dana.okafor
 status: proposed
+profile: agile-delivery
 ---
 
 ## Overview
