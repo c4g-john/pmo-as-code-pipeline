@@ -13,14 +13,17 @@ def _cell(ids: set[str]) -> str:
     return ", ".join(sorted(ids)) if ids else "—"
 
 
-def build_rows(graph) -> list[dict]:
+def build_rows(graph, project: str | None = None) -> list[dict]:
     rows: list[dict] = []
-    for br in sorted(graph.by_prefix.get("BR", []), key=lambda i: i.id):
+    brs = graph.by_type.get("BR", [])
+    if project:
+        brs = [b for b in brs if b.project == project]
+    for br in sorted(brs, key=lambda i: i.id):
         prs = graph.children(br.id, "traces", "PR")
         fr_ids, ac_ids, tc_ids = set(), set(), set()
         for pr in prs:
             for src in graph.children(pr.id, "traces"):
-                if src.prefix in {"FR", "NFR"}:
+                if src.type in {"FR", "NFR"}:
                     fr_ids.add(src.id)
             for ac in graph.children(pr.id, "verifies", "AC"):
                 ac_ids.add(ac.id)
@@ -41,9 +44,10 @@ _HEADERS = ["Business Req", "Product Req", "Functional / NFR",
             "Acceptance Criteria", "Test Cases"]
 
 
-def render_markdown(graph) -> str:
-    rows = build_rows(graph)
-    out = ["# Requirements Traceability Matrix", ""]
+def render_markdown(graph, project: str | None = None) -> str:
+    rows = build_rows(graph, project)
+    title = f"# Requirements Traceability Matrix — {project}" if project else "# Requirements Traceability Matrix"
+    out = [title, ""]
     out.append("| " + " | ".join(_HEADERS) + " |")
     out.append("|" + "|".join(["---"] * len(_HEADERS)) + "|")
     for r in rows:
@@ -57,10 +61,10 @@ def render_markdown(graph) -> str:
     return "\n".join(out) + "\n"
 
 
-def render_csv(graph) -> str:
+def render_csv(graph, project: str | None = None) -> str:
     buf = io.StringIO()
     writer = csv.writer(buf)
     writer.writerow(_HEADERS)
-    for r in build_rows(graph):
+    for r in build_rows(graph, project):
         writer.writerow([r["BR"]] + [_cell(r[c]) for c in _COLS[1:]])
     return buf.getvalue()

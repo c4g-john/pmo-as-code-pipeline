@@ -20,7 +20,7 @@ def test_build_status_from_repo():
     # the onboarding spine is fully covered
     assert all(not c["gaps"] for c in m["coverage"])
     # the risk register contributes open risks
-    assert any(r["id"] == "RISK-001" for r in m["risks"])
+    assert any(r["id"] == "AUR-RISK-001" for r in m["risks"])
     assert m["rag"] in {"green", "amber", "red"}
 
 
@@ -71,7 +71,7 @@ def test_render_html_is_self_contained():
     _cd_root()
     out = S.render_html(S.build_status(ROOT / "documents"))
     assert out.startswith("<!doctype html>")
-    assert "AMBER" in out and "RISK-001" in out
+    assert "AMBER" in out and "AUR-RISK-001" in out
     assert "http://" not in out and "https://" not in out  # no external deps
 
 

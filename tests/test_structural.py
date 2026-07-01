@@ -11,7 +11,7 @@ from docunit.loader import load, load_criteria, parse_sections
 from docunit.structural import _is_measurable, _field_value, run_structural, CHECKS
 
 ROOT = Path(__file__).resolve().parent.parent
-AURORA = ROOT / "documents" / "charters" / "aurora.md"
+AURORA = ROOT / "documents" / "PRJ-001-AUR" / "charter.md"
 WEAK = ROOT / "tests" / "fixtures" / "weak-example.md"
 
 

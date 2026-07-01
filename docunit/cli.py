@@ -140,6 +140,32 @@ def cmd_rtm(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_projects(args: argparse.Namespace) -> int:
+    from . import projects as proj
+    plist = proj.load_projects(DOCUMENTS_DIR)
+    issues = proj.registry_issues(plist)
+    for issue in issues:
+        print(f"docunit: {issue}", file=sys.stderr)
+    text = proj.render_yaml(plist)
+
+    if args.check:
+        current = Path(args.out or "projects.yaml")
+        existing = current.read_text() if current.is_file() else ""
+        if existing != text:
+            print(f"docunit: {current} is stale — run `docunit projects --out {current}`",
+                  file=sys.stderr)
+            return 1
+        print(f"docunit: {current} is up to date ({len(plist)} projects).")
+        return 1 if issues else 0
+
+    if args.out:
+        Path(args.out).write_text(text)
+        print(f"docunit: wrote {args.out} ({len(plist)} projects)")
+    else:
+        sys.stdout.write(text)
+    return 1 if issues else 0
+
+
 def cmd_status(args: argparse.Namespace) -> int:
     from . import status as status_mod
     model = status_mod.build_status(DOCUMENTS_DIR)
@@ -187,6 +213,12 @@ def main(argv: list[str] | None = None) -> int:
                    help="Condensed markdown (RAG + signals, no inventory table).")
     s.add_argument("--out", help="Write to this path instead of stdout.")
     s.set_defaults(func=cmd_status)
+
+    p = sub.add_parser("projects", help="Generate the project registry from the project.md anchors.")
+    p.add_argument("--out", help="Write to this path instead of stdout (e.g. projects.yaml).")
+    p.add_argument("--check", action="store_true",
+                   help="Exit non-zero if the registry file is stale (CI freshness gate).")
+    p.set_defaults(func=cmd_projects)
 
     args = parser.parse_args(argv)
     return args.func(args)

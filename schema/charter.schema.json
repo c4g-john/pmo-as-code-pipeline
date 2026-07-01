@@ -3,16 +3,30 @@
   "$id": "https://pmo-as-code/schema/charter.schema.json",
   "title": "Project Charter frontmatter",
   "type": "object",
-  "required": ["kind", "id", "title", "sponsor", "budget", "dates", "status"],
+  "required": [
+    "kind",
+    "id",
+    "project",
+    "title",
+    "sponsor",
+    "budget",
+    "dates",
+    "status"
+  ],
   "additionalProperties": true,
   "properties": {
-    "kind": { "const": "charter" },
+    "kind": {
+      "const": "charter"
+    },
     "id": {
       "type": "string",
-      "pattern": "^[a-z0-9][a-z0-9-]*$",
-      "description": "Stable, lowercase, hyphenated identifier. Unique across documents/."
+      "pattern": "^[A-Z]{2,6}-[a-z0-9][a-z0-9-]*$",
+      "description": "Stable id, <CODE>-<slug> (e.g. AUR-brd). The CODE namespaces it to the owning project. Unique across documents/."
     },
-    "title": { "type": "string", "minLength": 3 },
+    "title": {
+      "type": "string",
+      "minLength": 3
+    },
     "sponsor": {
       "type": "string",
       "minLength": 2,
@@ -20,22 +34,51 @@
     },
     "budget": {
       "type": "object",
-      "required": ["amount", "currency"],
+      "required": [
+        "amount",
+        "currency"
+      ],
       "additionalProperties": false,
       "properties": {
-        "amount": { "type": "number", "exclusiveMinimum": 0 },
-        "currency": { "type": "string", "pattern": "^[A-Z]{3}$" }
+        "amount": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        }
       }
     },
     "dates": {
       "type": "object",
-      "required": ["created", "target"],
+      "required": [
+        "created",
+        "target"
+      ],
       "additionalProperties": false,
       "properties": {
-        "created": { "type": "string", "format": "date" },
-        "target": { "type": "string", "format": "date" }
+        "created": {
+          "type": "string",
+          "format": "date"
+        },
+        "target": {
+          "type": "string",
+          "format": "date"
+        }
       }
     },
-    "status": { "enum": ["draft", "proposed", "approved"] }
+    "status": {
+      "enum": [
+        "draft",
+        "proposed",
+        "approved"
+      ]
+    },
+    "project": {
+      "type": "string",
+      "pattern": "^PRJ-\\d{3,}-[A-Z]{2,6}$",
+      "description": "Owning project's canonical id, PRJ-NNN-CODE (e.g. PRJ-001-AUR)."
+    }
   }
 }

@@ -149,12 +149,19 @@ def check_unique_id(doc: Document, ctx: dict) -> tuple[bool, str]:
     return True, f"id '{doc.id}' is unique."
 
 
+def _project_code(doc: Document) -> str:
+    """The project code for a document, e.g. 'AUR' from project: PRJ-001-AUR."""
+    return str(doc.frontmatter.get("project", "")).split("-")[-1]
+
+
 def check_items_well_formed(doc: Document, ctx: dict) -> tuple[bool, str]:
-    """Every bullet in a declared item-section is a valid, correctly-prefixed
-    traceable item (``**PREFIX-123** (links): text``)."""
+    """Every bullet in a declared item-section is a valid item
+    ``**<CODE>-<TYPE>-<NNN>**``: the type matches the section, and the project
+    code matches the document's project."""
     specs = ctx.get("item_sections") or []
     if not specs:
         return True, "No item sections for this kind."
+    code = _project_code(doc)
     problems: list[str] = []
     total = 0
     for spec in specs:
@@ -165,13 +172,34 @@ def check_items_well_formed(doc: Document, ctx: dict) -> tuple[bool, str]:
             total += 1
             if not m:
                 problems.append(f'malformed item in "{spec["section"]}": “{raw[:50]}”')
-            elif m.group("prefix") != spec["prefix"]:
+                continue
+            if m.group("type") != spec["prefix"]:
                 problems.append(
-                    f'“{m.group("id")}” in "{spec["section"]}" should use prefix '
-                    f'{spec["prefix"]}-')
+                    f'“{m.group("id")}” in "{spec["section"]}" should be type '
+                    f'{spec["prefix"]} ({code}-{spec["prefix"]}-NNN)')
+            if code and m.group("project") != code:
+                problems.append(
+                    f'“{m.group("id")}” uses project {m.group("project")} but the '
+                    f'document belongs to {code}')
     if problems:
         return False, "; ".join(problems)
     return True, f"All {total} item(s) well-formed."
+
+
+_PROJECT_ID_RE = re.compile(r"^PRJ-\d{3,}-(?P<code>[A-Z]{2,6})$")
+
+
+def check_project_id_format(doc: Document, ctx: dict) -> tuple[bool, str]:
+    """A project.md declares a well-formed id (PRJ-NNN-CODE) whose tail matches
+    its `code` field."""
+    pid = str(doc.frontmatter.get("id", ""))
+    code = str(doc.frontmatter.get("code", ""))
+    m = _PROJECT_ID_RE.match(pid)
+    if not m:
+        return False, f"project id {pid!r} must match PRJ-NNN-CODE (e.g. PRJ-001-AUR)."
+    if m.group("code") != code:
+        return False, f"project id tail ({m.group('code')}) must equal code ({code!r})."
+    return True, f"Project id {pid} is well-formed."
 
 
 _RISK_FIELDS = ["Probability", "Impact", "Owner", "Response"]
@@ -327,17 +355,17 @@ def check_measurable_items(doc: Document, ctx: dict) -> tuple[bool, str]:
     return True, f"All {total} item(s) in measurable sections state a threshold."
 
 
-_RISK_REF_RE = re.compile(r"\bRISK-\d+\b")
+_RISK_REF_RE = re.compile(r"\b[A-Z]{2,6}-RISK-\d+\b")
 
 
 def check_references_risk(doc: Document, ctx: dict) -> tuple[bool, str]:
-    """The 'Risks & Issues' section cites at least one RISK-### from the register."""
+    """The 'Risks & Issues' section cites at least one <CODE>-RISK-### from the register."""
     section = doc.section("Risks & Issues")
     if section is None:
         return False, "No Risks & Issues section."
     refs = _RISK_REF_RE.findall(section.body)
     if not refs:
-        return False, "Risks & Issues cites no RISK-### from the register."
+        return False, "Risks & Issues cites no <CODE>-RISK-### from the register."
     return True, f"Cites {len(set(refs))} risk(s) from the register: {', '.join(sorted(set(refs)))}."
 
 
@@ -358,6 +386,7 @@ CHECKS: dict[str, Callable[[Document, dict], tuple[bool, str]]] = {
     "numbered-steps": check_numbered_steps,
     "measurable-items": check_measurable_items,
     "references-risk": check_references_risk,
+    "project-id-format": check_project_id_format,
 }
 
 

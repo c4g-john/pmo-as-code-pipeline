@@ -10,11 +10,12 @@ import yaml
 from .models import Document, Item, Section
 
 # A traceable item bullet, e.g.
-#   **PR-014** (traces: BR-001, BR-003): The flow shall be self-serve.
+#   **AUR-PR-014** (traces: AUR-BR-001): The flow shall be self-serve.
+# The id is <CODE>-<TYPE>-<NNN>: project code, item type, number.
 ITEM_RE = re.compile(
-    r"^\*\*(?P<id>(?P<prefix>[A-Z]{1,6})-\d+)\*\*"   # **PREFIX-123**
-    r"(?:\s*\((?P<links>[^)]*)\))?"                    # optional (relation: id, …)
-    r"\s*:\s*(?P<text>.+)$"                            # : text
+    r"^\*\*(?P<id>(?P<project>[A-Z]{2,6})-(?P<type>[A-Z]{2,6})-\d+)\*\*"   # **CODE-TYPE-123**
+    r"(?:\s*\((?P<links>[^)]*)\))?"                                          # optional (relation: id, …)
+    r"\s*:\s*(?P<text>.+)$"                                                  # : text
 )
 
 
@@ -103,7 +104,8 @@ def parse_items(doc: Document, item_sections: list[dict]) -> list[Item]:
                 continue
             items.append(Item(
                 id=m.group("id"),
-                prefix=m.group("prefix"),
+                project=m.group("project"),
+                type=m.group("type"),
                 text=m.group("text").strip(),
                 links=parse_link_clause(m.group("links") or ""),
                 doc_path=doc.path,

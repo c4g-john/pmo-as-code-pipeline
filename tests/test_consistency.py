@@ -15,8 +15,8 @@ ROOT = Path(__file__).resolve().parent.parent
 CONFIG = load_config(ROOT / "consistency.yaml")
 
 
-def mk(iid, prefix, links=None, status="approved"):
-    return Item(iid, prefix, f"{iid} text", links or {}, "d.md", "k", status, "S")
+def mk(iid, type_, links=None, status="approved", project="AUR"):
+    return Item(iid, project, type_, f"{iid} text", links or {}, "d.md", "k", status, "S")
 
 
 def graph_of(*items):
@@ -85,6 +85,14 @@ def test_repo_consistency_has_no_blocking_failures():
 def test_rtm_renders_full_chain():
     rows = rtm.build_rows(build_graph(ROOT / "documents"))
     by_br = {r["BR"]: r for r in rows}
-    assert by_br["BR-001"]["PR"] == {"PR-014"}
-    assert by_br["BR-001"]["TC"] == {"TC-001"}
+    assert by_br["AUR-BR-001"]["PR"] == {"AUR-PR-014"}
+    assert by_br["AUR-BR-001"]["TC"] == {"AUR-TC-001"}
     assert all(r["PR"] for r in rows)  # no uncovered business requirement
+
+
+def test_rtm_scopes_to_one_project():
+    g = build_graph(ROOT / "documents")
+    aur = {r["BR"] for r in rtm.build_rows(g, project="AUR")}
+    atl = {r["BR"] for r in rtm.build_rows(g, project="ATL")}
+    assert aur == {"AUR-BR-001", "AUR-BR-002"}
+    assert atl == {"ATL-BR-001", "ATL-BR-002"}
