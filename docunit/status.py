@@ -196,3 +196,102 @@ def render_markdown(model, summary: bool = False) -> str:
 
 def render_json(model) -> str:
     return json.dumps(model, indent=2) + "\n"
+
+
+_HTML_CSS = """
+  :root { --bg:#0d1117; --panel:#161b22; --border:#30363d; --ink:#e6edf3;
+          --muted:#8b949e; --ok:#2ea043; --amber:#d29922; --bad:#f85149; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+         font:15px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
+  main { max-width:860px; margin:0 auto; padding:40px 24px 64px; }
+  header { display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:8px; }
+  .rag { font-weight:700; font-size:13px; letter-spacing:.08em; color:#0d1117;
+         padding:5px 12px; border-radius:999px; }
+  h1 { font-size:26px; margin:0; }
+  .meta { color:var(--muted); font-size:13px; margin:2px 0 30px; }
+  section { margin-bottom:30px; }
+  h2 { font-size:15px; text-transform:uppercase; letter-spacing:.05em;
+       color:var(--muted); border-bottom:1px solid var(--border); padding-bottom:8px; }
+  .sig { margin:12px 0; }
+  .sig-h { display:flex; justify-content:space-between; font-size:14px; margin-bottom:5px; }
+  .bar { height:8px; background:var(--border); border-radius:4px; overflow:hidden; }
+  .bar-f { height:100%; background:var(--ok); border-radius:4px; }
+  ul { padding-left:18px; } li { margin:4px 0; }
+  code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:13px;
+         background:#21262d; padding:1px 5px; border-radius:4px; }
+  table { width:100%; border-collapse:collapse; font-size:13.5px; }
+  th,td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); }
+  th { color:var(--muted); font-weight:600; }
+  td.ok { color:var(--ok); } td.bad { color:var(--bad); font-weight:700; }
+  footer { color:var(--muted); font-size:12px; margin-top:36px; border-top:1px solid var(--border); padding-top:14px; }
+"""
+
+
+def render_html(model) -> str:
+    import datetime
+    import html as _h
+    rag = model["rag"]
+    c = model["counts"]
+    color = {"green": "var(--ok)", "amber": "var(--amber)", "red": "var(--bad)"}[rag]
+    bar_color = {"green": "var(--ok)", "amber": "var(--amber)", "red": "var(--bad)"}[rag]
+    esc = lambda s: _h.escape(str(s))
+
+    coverage = "".join(
+        f'<div class="sig"><div class="sig-h"><span>{esc(cov["label"])}</span>'
+        f'<span>{cov["covered"]}/{cov["total"]}'
+        + (f' · gaps: {esc(", ".join(cov["gaps"]))}' if cov["gaps"] else "")
+        + '</span></div><div class="bar"><div class="bar-f" style="width:'
+        f'{(100 * cov["covered"] // cov["total"]) if cov["total"] else 100}%'
+        + (";background:var(--amber)" if cov["gaps"] else "") + '"></div></div></div>'
+        for cov in model["coverage"])
+
+    risks = "".join(
+        f'<li><code>{esc(r["id"])}</code> — {esc(r["probability"])}/{esc(r["impact"])}'
+        f' · owner {esc(r["owner"])}</li>' for r in model["risks"]) or "<li>None open.</li>"
+
+    problems = ""
+    if model["broken_references"]:
+        problems += ("<section><h2>Broken references</h2><ul>"
+                     + "".join(f"<li><code>{esc(b)}</code></li>" for b in model["broken_references"])
+                     + "</ul></section>")
+    failing = [d for d in model["documents"] if not d["passing"]]
+    if failing:
+        problems += ("<section><h2>Documents failing audit</h2><ul>"
+                     + "".join(f'<li><code>{esc(d["id"])}</code></li>' for d in failing)
+                     + "</ul></section>")
+
+    rows = "".join(
+        f'<tr><td>{esc(d["kind"])}</td><td><code>{esc(d["id"])}</code></td>'
+        f'<td>{esc(d["status"])}</td>'
+        f'<td class="{"ok" if d["passing"] else "bad"}">{"✓" if d["passing"] else "✗"}</td></tr>'
+        for d in sorted(model["documents"], key=lambda x: (x["kind"], x["id"])))
+
+    lr = model["latest_report"]
+    report = (f'<code>{esc(lr["id"])}</code> ({esc(lr["period"])}) → reported <b>{esc(lr["rag"])}</b>'
+              if lr else "None on record.")
+    gen = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+
+    return f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Project Status — {rag.upper()}</title>
+<style>{_HTML_CSS}
+  .bar-f {{ background:{bar_color}; }}</style></head>
+<body><main>
+  <header>
+    <span class="rag" style="background:{color}">{rag.upper()}</span>
+    <h1>Project Status</h1>
+  </header>
+  <p class="meta">Derived from {c['total']} documents · {c['kinds']} kinds ·
+    {c['approved']} approved · generated {gen}. Do not edit — regenerated from the documents.</p>
+  <section><h2>Traceability coverage</h2>{coverage}</section>
+  {problems}
+  <section><h2>Open risks ({len(model['risks'])})</h2><ul>{risks}</ul></section>
+  <section><h2>Latest status report</h2><p>{report}</p></section>
+  <section><h2>Documents ({c['total']})</h2>
+    <table><thead><tr><th>Kind</th><th>ID</th><th>Status</th><th>Audit</th></tr></thead>
+    <tbody>{rows}</tbody></table></section>
+  <footer>Generated by <code>docunit status</code> from the documents in this repository.</footer>
+</main></body></html>
+"""

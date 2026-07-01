@@ -64,3 +64,19 @@ def test_rag_green_when_clean():
     m = _model(documents=[{"status": "approved", "passing": True}],
                coverage=[{"gaps": []}])
     assert S.derive_rag(m) == "green"
+
+
+# ── renderers produce sane output ───────────────────────────────────────────
+def test_render_html_is_self_contained():
+    _cd_root()
+    out = S.render_html(S.build_status(ROOT / "documents"))
+    assert out.startswith("<!doctype html>")
+    assert "AMBER" in out and "RISK-001" in out
+    assert "http://" not in out and "https://" not in out  # no external deps
+
+
+def test_render_json_roundtrips():
+    import json
+    _cd_root()
+    data = json.loads(S.render_json(S.build_status(ROOT / "documents")))
+    assert data["rag"] == "amber" and data["counts"]["total"] >= 20
