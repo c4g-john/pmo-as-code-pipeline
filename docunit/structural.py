@@ -174,6 +174,71 @@ def check_items_well_formed(doc: Document, ctx: dict) -> tuple[bool, str]:
     return True, f"All {total} item(s) well-formed."
 
 
+_RISK_FIELDS = ["Probability", "Impact", "Owner", "Response"]
+_ADR_STATES = {"proposed", "accepted", "superseded", "deprecated", "rejected"}
+
+
+def _items_of_prefix(doc: Document, ctx: dict, prefix: str):
+    """Yield (id, text) for every well-formed item of `prefix` in the doc."""
+    for spec in (ctx.get("item_sections") or []):
+        if spec.get("prefix") != prefix:
+            continue
+        section = doc.section(spec["section"])
+        if section is None:
+            continue
+        for _raw, m in iter_item_lines(section):
+            if m:
+                yield m.group("id"), m.group("text")
+
+
+def check_risk_items_complete(doc: Document, ctx: dict) -> tuple[bool, str]:
+    """Every RISK item names a Probability, Impact, Owner, and Response."""
+    incomplete, total = [], 0
+    for iid, text in _items_of_prefix(doc, ctx, "RISK"):
+        total += 1
+        missing = [f for f in _RISK_FIELDS if _field_value(text, f) is None]
+        if missing:
+            incomplete.append(f'{iid} missing {", ".join(missing)}')
+    if incomplete:
+        return False, "; ".join(incomplete)
+    return True, f"All {total} risk(s) state probability, impact, owner, and response."
+
+
+def check_adr_items_have_status(doc: Document, ctx: dict) -> tuple[bool, str]:
+    """Every ADR item declares a valid Status."""
+    bad, total = [], 0
+    for iid, text in _items_of_prefix(doc, ctx, "ADR"):
+        total += 1
+        status = _field_value(text, "status")
+        if status is None or status.lower() not in _ADR_STATES:
+            bad.append(f"{iid} status {status!r}")
+    if bad:
+        return False, ("; ".join(bad)
+                       + f" (expected one of: {', '.join(sorted(_ADR_STATES))})")
+    return True, f"All {total} decision(s) have a valid status."
+
+
+def check_raci_one_accountable(doc: Document, ctx: dict) -> tuple[bool, str]:
+    """The RACI Matrix table has exactly one Accountable (A) per activity."""
+    section = doc.section("RACI Matrix")
+    if section is None:
+        return False, "No RACI Matrix section."
+    rows = [ln.strip() for ln in section.body.splitlines() if ln.strip().startswith("|")]
+    data = [r for r in rows if "---" not in r][1:]  # drop header + separator
+    if not data:
+        return False, "RACI Matrix has no activity rows."
+    problems = []
+    for row in data:
+        cells = [c.strip() for c in row.strip("|").split("|")]
+        activity = cells[0] if cells else "?"
+        a_count = sum(1 for c in cells[1:] if c.upper() == "A")
+        if a_count != 1:
+            problems.append(f'"{activity}" has {a_count} Accountable (need exactly 1)')
+    if problems:
+        return False, "; ".join(problems)
+    return True, f"All {len(data)} activities have exactly one Accountable role."
+
+
 CHECKS: dict[str, Callable[[Document, dict], tuple[bool, str]]] = {
     "frontmatter-schema": check_frontmatter_schema,
     "required-sections": check_required_sections,
@@ -182,6 +247,9 @@ CHECKS: dict[str, Callable[[Document, dict], tuple[bool, str]]] = {
     "dates-consistent": check_dates_consistent,
     "unique-id": check_unique_id,
     "items-well-formed": check_items_well_formed,
+    "risk-items-complete": check_risk_items_complete,
+    "adr-items-have-status": check_adr_items_have_status,
+    "raci-one-accountable": check_raci_one_accountable,
 }
 
 
