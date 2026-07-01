@@ -140,6 +140,21 @@ def cmd_rtm(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_status(args: argparse.Namespace) -> int:
+    from . import status as status_mod
+    model = status_mod.build_status(DOCUMENTS_DIR)
+    if args.format == "json":
+        text = status_mod.render_json(model)
+    else:
+        text = status_mod.render_markdown(model)
+    if args.out:
+        Path(args.out).write_text(text)
+        print(f"docunit: wrote {args.out} (status: {model['rag']})")
+    else:
+        sys.stdout.write(text)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="docunit",
                                      description="Unit testing for business documents.")
@@ -162,6 +177,12 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--out", help="Write to this path instead of stdout.")
     r.add_argument("--csv", action="store_true", help="Emit CSV instead of Markdown.")
     r.set_defaults(func=cmd_rtm)
+
+    s = sub.add_parser("status", help="Derive a project status page from the documents.")
+    s.add_argument("--format", choices=["md", "json"], default="md",
+                   help="Output format (default: md).")
+    s.add_argument("--out", help="Write to this path instead of stdout.")
+    s.set_defaults(func=cmd_status)
 
     args = parser.parse_args(argv)
     return args.func(args)
