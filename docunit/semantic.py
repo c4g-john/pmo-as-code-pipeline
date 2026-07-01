@@ -58,10 +58,11 @@ def _grade(prompt: str, content: str, model: str) -> dict:
     import anthropic  # imported lazily so structural-only runs need no dependency
 
     client = anthropic.Anthropic()  # reads ANTHROPIC_API_KEY
+    # Note: newer Claude models deprecate the `temperature` parameter, so we do
+    # not set it. Grading is kept consistent by the strict JSON rubric instead.
     message = client.messages.create(
         model=model,
         max_tokens=400,
-        temperature=0,
         system=_SYSTEM,
         messages=[{
             "role": "user",
