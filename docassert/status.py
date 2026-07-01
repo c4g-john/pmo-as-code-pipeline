@@ -9,14 +9,12 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from . import config as config_mod
 from . import profiles as profiles_mod
-from .consistency import load_config
 from .graph import build_graph
-from .loader import load, load_criteria
+from .loader import load
 from .structural import _field_value, run_structural
 
-CRITERIA_DIR = Path("criteria")
-SCHEMA_DIR = Path("schema")
 DOCUMENTS_DIR = Path("documents")
 APPROVED = {"approved", "baselined"}
 _SEVERITY = {"low": 1, "medium": 2, "high": 3, "critical": 4}
@@ -25,12 +23,13 @@ _SEVERITY = {"low": 1, "medium": 2, "high": 3, "critical": 4}
 # ── per-document validity (blocking structural checks only) ─────────────────
 def _doc_passes(doc, id_index) -> bool:
     kind = doc.kind or ""
-    cpath = CRITERIA_DIR / f"{kind}.criteria.yaml"
-    if not cpath.is_file():
+    if not config_mod.criteria_exists(kind):
         return True
-    criteria = load_criteria(cpath)
-    schema_path = SCHEMA_DIR / f"{kind}.schema.json"
-    schema = json.loads(schema_path.read_text()) if schema_path.is_file() else {}
+    criteria = config_mod.read_criteria(kind)
+    try:
+        schema = config_mod.read_schema(kind)
+    except FileNotFoundError:
+        schema = {}
     ctx = {
         "schema": schema,
         "required_sections": criteria.get("required_sections", []),
@@ -119,7 +118,7 @@ def build_status(documents_dir=DOCUMENTS_DIR, project: str | None = None) -> dic
     """
     all_docs = [load(p) for p in sorted(Path(documents_dir).rglob("*.md"))]
     graph = build_graph(documents_dir)
-    config = load_config()
+    cfg = config_mod.read_consistency_config()
 
     code = project.split("-")[-1] if project else None
     if project:
@@ -160,7 +159,7 @@ def build_status(documents_dir=DOCUMENTS_DIR, project: str | None = None) -> dic
             "approved": sum(1 for d in documents if d["status"] in APPROVED),
             "failing": sum(1 for d in documents if not d["passing"]),
         },
-        "coverage": _coverage(graph, config, code),
+        "coverage": _coverage(graph, cfg, code),
         "risks": _risks(graph, code),
         "broken_references": _broken_references(graph, code),
         "latest_report": _latest_report(docs),

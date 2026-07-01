@@ -15,17 +15,16 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-from . import report, rtm
+from . import config, report, rtm
 from .consistency import run_consistency
 from .graph import build_graph
-from .loader import load, load_criteria
+from .loader import load
 from .models import CheckResult
 from .semantic import run_semantic
 from .structural import run_structural
 
-# repo layout
-CRITERIA_DIR = Path("criteria")
-SCHEMA_DIR = Path("schema")
+# The user's documents live here; criteria / schema / consistency.yaml / profiles
+# resolve via `config` (local override → packaged default).
 DOCUMENTS_DIR = Path("documents")
 
 
@@ -45,10 +44,8 @@ def _build_id_index() -> dict[str, list[str]]:
 def _validate_one(path: str, id_index: dict) -> list[CheckResult]:
     doc = load(path)
     kind = doc.kind or "charter"
-    criteria = load_criteria(CRITERIA_DIR / f"{kind}.criteria.yaml")
-    schema_path = SCHEMA_DIR / f"{kind}.schema.json"
-    import json
-    schema = json.loads(schema_path.read_text())
+    criteria = config.read_criteria(kind)
+    schema = config.read_schema(kind)
 
     ctx = {
         "schema": schema,
@@ -224,6 +221,17 @@ def cmd_pages(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_init(args: argparse.Namespace) -> int:
+    """Scaffold a repo with the default criteria, schema, profiles, templates,
+    and consistency.yaml so a team can customize the standard."""
+    created = config.init(args.dir)
+    if created:
+        print(f"docassert: scaffolded {', '.join(created)} in {args.dir}/")
+    else:
+        print(f"docassert: nothing to do — {args.dir}/ already has the config files")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     from . import __version__
     parser = argparse.ArgumentParser(prog="docassert",
@@ -270,6 +278,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--check", action="store_true",
                    help="Exit non-zero if the registry file is stale (CI freshness gate).")
     p.set_defaults(func=cmd_projects)
+
+    ini = sub.add_parser("init", help="Scaffold the default criteria/schema/profiles/templates into a repo.")
+    ini.add_argument("dir", nargs="?", default=".", help="Target directory (default: current).")
+    ini.set_defaults(func=cmd_init)
 
     args = parser.parse_args(argv)
     return args.func(args)

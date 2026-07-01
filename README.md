@@ -187,6 +187,24 @@ To enable AI advisory scoring, set `ANTHROPIC_API_KEY` in your environment (and,
 in CI, as a repository secret). Without it, the semantic checks are skipped and
 the structural gate still works.
 
+## Use it in your own repo
+
+docassert ships the default criteria, schemas, profiles, templates, and
+`consistency.yaml` as package data, so it works in any repo out of the box —
+`pip install docassert`, then run it against your `documents/`. Config is
+resolved **local override → packaged default**: if your repo has its own
+`criteria/` (or `schema/`, `profiles/`, `consistency.yaml`), those win;
+otherwise the bundled defaults apply.
+
+```bash
+docassert init          # scaffold the defaults into your repo, ready to customize
+docassert validate documents/**/*.md
+```
+
+`docassert init` copies `criteria/`, `schema/`, `profiles/`, `templates/`, and
+`consistency.yaml` into the current directory (skipping anything already there),
+so you can tune the standard to your organization.
+
 ## Repository layout
 
 | Path | Purpose |

@@ -4,10 +4,10 @@ from __future__ import annotations
 from collections import defaultdict
 from pathlib import Path
 
-from .loader import load, load_criteria, parse_items
+from . import config
+from .loader import load, parse_items
 from .models import Item
 
-CRITERIA_DIR = Path("criteria")
 DOCUMENTS_DIR = Path("documents")
 
 
@@ -51,10 +51,9 @@ class Graph:
 
 
 def _item_sections_for(kind: str) -> list[dict]:
-    path = CRITERIA_DIR / f"{kind}.criteria.yaml"
-    if not path.is_file():
+    if not config.criteria_exists(kind):
         return []
-    return load_criteria(path).get("item_sections", []) or []
+    return config.read_criteria(kind).get("item_sections", []) or []
 
 
 def build_graph(documents_dir: str | Path = DOCUMENTS_DIR) -> Graph:
