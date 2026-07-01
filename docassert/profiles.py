@@ -15,19 +15,29 @@ from pathlib import Path
 
 import yaml
 
-PROFILES_DIR = Path("profiles")
+from . import config as config_mod
+
 APPROVED = {"approved", "baselined"}
 
 
-def available(profiles_dir: str | Path = PROFILES_DIR) -> list[str]:
-    d = Path(profiles_dir)
-    return sorted(p.stem for p in d.glob("*.yaml")) if d.is_dir() else []
+def available(profiles_dir: str | Path | None = None) -> list[str]:
+    """Profile names. Default resolves local ./profiles + packaged defaults; pass
+    an explicit dir to look only there."""
+    if profiles_dir is not None:
+        d = Path(profiles_dir)
+        return sorted(p.stem for p in d.glob("*.yaml")) if d.is_dir() else []
+    return config_mod.available_profiles()
 
 
-def load_profile(name: str, profiles_dir: str | Path = PROFILES_DIR) -> dict | None:
-    """Load one profile, or None if there is no such file."""
-    path = Path(profiles_dir) / f"{name}.yaml"
-    if not path.is_file():
+def load_profile(name: str, profiles_dir: str | Path | None = None) -> dict | None:
+    """Load one profile, or None if there is no such file. Default resolves
+    ./profiles then the packaged defaults; pass an explicit dir to override."""
+    if profiles_dir is not None:
+        candidate = Path(profiles_dir) / f"{name}.yaml"
+        path = candidate if candidate.is_file() else None
+    else:
+        path = config_mod.profile_path(name)
+    if path is None:
         return None
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     expects = data.get("expects", {}) or {}

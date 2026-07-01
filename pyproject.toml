@@ -46,6 +46,12 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools]
 packages = ["docassert"]
 
+[tool.setuptools.package-data]
+# Ship the default criteria/schema/profiles/templates/consistency.yaml so
+# docassert works in a repo that hasn't defined its own (and `docassert init`
+# can scaffold them).
+docassert = ["_data/**/*"]
+
 [tool.setuptools.dynamic]
 version = { attr = "docassert.__version__" }
 

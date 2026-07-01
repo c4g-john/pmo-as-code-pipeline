@@ -17,6 +17,7 @@ from pathlib import Path
 
 import yaml
 
+from . import config as config_mod
 from .graph import build_graph
 from .models import CheckResult
 from .semantic import run_alignment
@@ -150,17 +151,17 @@ def run_alignment_checks(graph, config) -> list[CheckResult]:
 
 
 def run_consistency(documents_dir: str | Path = "documents",
-                    config_path: str | Path = CONFIG_PATH,
+                    config_path: str | Path | None = None,
                     with_semantic: bool = True) -> list[CheckResult]:
     graph = build_graph(documents_dir)
-    config = load_config(config_path)
+    cfg = load_config(config_path) if config_path is not None else config_mod.read_consistency_config()
     results = [
         check_unique_item_ids(graph),
         check_referential_integrity(graph),
-        check_required_links(graph, config),
-        check_coverage(graph, config),
+        check_required_links(graph, cfg),
+        check_coverage(graph, cfg),
         check_profile_completeness(documents_dir),
     ]
     if with_semantic:
-        results.extend(run_alignment_checks(graph, config))
+        results.extend(run_alignment_checks(graph, cfg))
     return results
