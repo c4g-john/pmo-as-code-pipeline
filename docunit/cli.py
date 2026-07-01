@@ -121,7 +121,8 @@ def cmd_consistency(args: argparse.Namespace) -> int:
     if args.junit:
         Path(args.junit).write_text(report.junit(results_by_doc))
     if args.markdown:
-        Path(args.markdown).write_text(report.markdown(results_by_doc))
+        Path(args.markdown).write_text(
+            report.markdown(results_by_doc, title="docunit consistency"))
 
     return sum(1 for r in results if r.is_blocking_failure)
 

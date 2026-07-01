@@ -37,9 +37,10 @@ def summary_line(results_by_doc: dict[str, list[CheckResult]]) -> str:
     return f"{_TICK} All structural checks passed across {docs} document(s) {_DASH} clear to merge."
 
 
-def markdown(results_by_doc: dict[str, list[CheckResult]]) -> str:
+def markdown(results_by_doc: dict[str, list[CheckResult]],
+             title: str = "docunit audit") -> str:
     """PR-comment body."""
-    out = ["## docunit audit", "", summary_line(results_by_doc), ""]
+    out = [f"## {title}", "", summary_line(results_by_doc), ""]
     for path, results in results_by_doc.items():
         out.append(f"### `{path}`")
         out.append("")
