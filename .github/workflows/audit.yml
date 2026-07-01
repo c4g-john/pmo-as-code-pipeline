@@ -88,3 +88,32 @@ jobs:
         with:
           name: traceability-matrix
           path: RTM.md
+
+  # Derived project status. Informational (not a required check): it posts the
+  # current derived RAG + signals to the PR, and warns if the committed
+  # STATUS.md has drifted from what the documents now imply.
+  status:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install docunit
+        run: pip install -e ".[ai]"
+
+      - name: Derive status
+        run: docunit status --format md --summary --out status-comment.md
+
+      - name: Post status to the PR
+        if: always() && hashFiles('status-comment.md') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr comment "${{ github.event.pull_request.number }}" --body-file status-comment.md
+
+      - name: Flag a stale STATUS.md
+        run: |
+          docunit status --format md --out STATUS.md
+          if ! git diff --quiet -- STATUS.md; then
+            echo "::warning::STATUS.md is out of date — run 'docunit status --format md --out STATUS.md' and commit it."
+          fi

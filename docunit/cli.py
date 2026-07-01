@@ -146,7 +146,7 @@ def cmd_status(args: argparse.Namespace) -> int:
     if args.format == "json":
         text = status_mod.render_json(model)
     else:
-        text = status_mod.render_markdown(model)
+        text = status_mod.render_markdown(model, summary=args.summary)
     if args.out:
         Path(args.out).write_text(text)
         print(f"docunit: wrote {args.out} (status: {model['rag']})")
@@ -181,6 +181,8 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("status", help="Derive a project status page from the documents.")
     s.add_argument("--format", choices=["md", "json"], default="md",
                    help="Output format (default: md).")
+    s.add_argument("--summary", action="store_true",
+                   help="Condensed markdown (RAG + signals, no inventory table).")
     s.add_argument("--out", help="Write to this path instead of stdout.")
     s.set_defaults(func=cmd_status)
 
