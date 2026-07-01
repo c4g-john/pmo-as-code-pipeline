@@ -38,7 +38,7 @@ def summary_line(results_by_doc: dict[str, list[CheckResult]]) -> str:
 
 
 def markdown(results_by_doc: dict[str, list[CheckResult]],
-             title: str = "docunit audit") -> str:
+             title: str = "docassert audit") -> str:
     """PR-comment body."""
     out = [f"## {title}", "", summary_line(results_by_doc), ""]
     for path, results in results_by_doc.items():

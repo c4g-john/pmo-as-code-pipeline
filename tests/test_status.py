@@ -2,7 +2,7 @@
 import os
 from pathlib import Path
 
-from docunit import status as S
+from docassert import status as S
 
 ROOT = Path(__file__).resolve().parent.parent
 

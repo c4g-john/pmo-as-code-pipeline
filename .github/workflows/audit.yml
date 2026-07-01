@@ -1,4 +1,4 @@
-name: docunit audit
+name: docassert audit
 
 # Runs on every PR so it can be a required status check. It validates only the
 # documents that changed; if none changed, it passes trivially.
@@ -21,7 +21,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install docunit
+      - name: Install docassert
         run: pip install -e ".[ai]"
 
       - name: Determine changed documents
@@ -32,7 +32,7 @@ jobs:
           echo "files=$files" >> "$GITHUB_OUTPUT"
           echo "Changed documents: ${files:-<none>}"
 
-      - name: Run docunit
+      - name: Run docassert
         id: audit
         if: steps.changed.outputs.files != ''
         env:
@@ -40,7 +40,7 @@ jobs:
           # semantic checks are skipped and structural checks still gate.
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          docunit validate ${{ steps.changed.outputs.files }} \
+          docassert validate ${{ steps.changed.outputs.files }} \
             --markdown comment.md --junit report.xml
 
       - name: Post audit result to the PR
@@ -53,7 +53,7 @@ jobs:
         if: always() && steps.changed.outputs.files != '' && hashFiles('report.xml') != ''
         uses: actions/upload-artifact@v4
         with:
-          name: docunit-report
+          name: docassert-report
           path: report.xml
 
   # Cross-document traceability. Runs repo-wide on every PR, because changing
@@ -65,21 +65,21 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install docunit
+      - name: Install docassert
         run: pip install -e ".[ai]"
 
       - name: Check the project registry is current
         # Blocking: fails if projects.yaml has drifted from the project.md anchors
         # or if any project id/code is duplicated across projects.
-        run: docunit projects --check --out projects.yaml
+        run: docassert projects --check --out projects.yaml
 
       - name: Check consistency
         id: consistency
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          docunit rtm --out RTM.md          # always render first (never fails)
-          docunit consistency --markdown consistency.md --junit consistency.xml
+          docassert rtm --out RTM.md          # always render first (never fails)
+          docassert consistency --markdown consistency.md --junit consistency.xml
 
       - name: Post consistency result to the PR
         if: always() && hashFiles('consistency.md') != ''
@@ -104,11 +104,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install docunit
+      - name: Install docassert
         run: pip install -e ".[ai]"
 
       - name: Derive status
-        run: docunit status --format md --summary --out status-comment.md
+        run: docassert status --format md --summary --out status-comment.md
 
       - name: Post status to the PR
         if: always() && hashFiles('status-comment.md') != ''
@@ -118,7 +118,7 @@ jobs:
 
       - name: Flag a stale STATUS.md
         run: |
-          docunit status --format md --out STATUS.md
+          docassert status --format md --out STATUS.md
           if ! git diff --quiet -- STATUS.md; then
-            echo "::warning::STATUS.md is out of date — run 'docunit status --format md --out STATUS.md' and commit it."
+            echo "::warning::STATUS.md is out of date — run 'docassert status --format md --out STATUS.md' and commit it."
           fi

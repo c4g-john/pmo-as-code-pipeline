@@ -1,7 +1,7 @@
 """Tests for the release & operate kinds' numbered-steps check."""
-from docunit.loader import parse_sections
-from docunit.models import Document
-from docunit.structural import check_numbered_steps
+from docassert.loader import parse_sections
+from docassert.models import Document
+from docassert.structural import check_numbered_steps
 
 
 def doc_from(body: str) -> Document:

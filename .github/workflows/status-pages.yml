@@ -34,7 +34,7 @@ jobs:
       - name: Build the status site
         # One command builds the whole site: a portfolio index (one RAG card per
         # project) plus a discrete status page per project, plus the RTM.
-        run: docunit pages --out _site
+        run: docassert pages --out _site
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

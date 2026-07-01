@@ -1,12 +1,12 @@
 ---
 name: doc-to-pmo
-description: Convert an existing business document (Word .docx, PDF, or pasted text) into the standard docunit Markdown template so it can be unit-tested by the pipeline. Use when someone wants to bring an existing charter (or other supported kind) into the PMO-as-Code repo.
+description: Convert an existing business document (Word .docx, PDF, or pasted text) into the standard docassert Markdown template so it can be unit-tested by the pipeline. Use when someone wants to bring an existing charter (or other supported kind) into the PMO-as-Code repo.
 ---
 
 # doc-to-pmo
 
 Convert a messy source document into a standard-template Markdown file that the
-`docunit` pipeline can validate. **Map the content faithfully — never invent
+`docassert` pipeline can validate. **Map the content faithfully — never invent
 missing facts to make the audit pass.** A document that lacks measurable
 success criteria *should* fail the audit; your job is to surface that, not hide
 it.
@@ -44,7 +44,7 @@ it.
    owner, or a mitigation.
 
 5. **Validate and report.** Run
-   `docunit validate documents/charters/<id>.md` and show the user the result.
+   `docassert validate documents/charters/<id>.md` and show the user the result.
    Summarise what passed, what is blocking, and exactly which TODOs they must
    resolve before the document can merge.
 

@@ -1,7 +1,7 @@
 """Tests for the delivery & quality kinds (user-story, qa-test-plan, data-migration)."""
-from docunit.loader import parse_sections
-from docunit.models import Document
-from docunit.structural import (
+from docassert.loader import parse_sections
+from docassert.models import Document
+from docassert.structural import (
     check_story_format,
     check_measurable_exit_criteria,
     check_has_mapping_table,

@@ -1,7 +1,7 @@
 """Tests for the report & close kinds (status-report, benefits-realization)."""
-from docunit.loader import parse_sections
-from docunit.models import Document
-from docunit.structural import check_measurable_items, check_references_risk
+from docassert.loader import parse_sections
+from docassert.models import Document
+from docassert.structural import check_measurable_items, check_references_risk
 
 
 def doc_from(body: str) -> Document:

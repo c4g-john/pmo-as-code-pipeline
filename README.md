@@ -1,12 +1,12 @@
-# docunit — unit testing for business documents
+# docassert — unit testing for business documents
 
 Business documents (charters, decisions, business cases) are usually prose in
 Word and PDF: unversioned, unvalidated, and impossible to audit at scale.
-`docunit` treats them like code. A document is a structured Markdown file. On
+`docassert` treats them like code. A document is a structured Markdown file. On
 every pull request it is **unit tested** against a configurable audit standard,
 and it can't merge until it passes.
 
-Beyond validating a single document, `docunit` also checks **consistency across
+Beyond validating a single document, `docassert` also checks **consistency across
 documents** — that requirements trace end to end (BRD → PRD → F/NFR →
 acceptance criteria → test cases) — and generates the traceability matrix from
 those links.
@@ -43,8 +43,8 @@ Every document belongs to a project with a unique, self-identifying id:
   globally unique and self-identifying, so `AUR-BR-001` and `ATL-BR-001` are
   distinct requirements in different projects.
 
-`docunit projects --out projects.yaml` regenerates the registry from the
-`project.md` anchors; `docunit projects --check` fails CI if it drifts from the
+`docassert projects --out projects.yaml` regenerates the registry from the
+`project.md` anchors; `docassert projects --check` fails CI if it drifts from the
 anchors or if any project id/code is duplicated.
 
 ## Traceability & consistency
@@ -59,7 +59,7 @@ and typed links:
 - **AUR-TC-001** (tests: AUR-AC-001): Steps… Expected…
 ```
 
-`docunit consistency` builds the graph across every document and checks it:
+`docassert consistency` builds the graph across every document and checks it:
 
 - **Structural (blocking):** every link resolves (broken references always
   block), item IDs are unique, and — once a document is `status: approved` —
@@ -68,7 +68,7 @@ and typed links:
 - **Semantic (advisory):** the AI judges whether each child genuinely fulfils
   the parent it links to (does AUR-PR-014 actually implement AUR-BR-001?).
 
-`docunit rtm` renders the Requirements Traceability Matrix (Markdown or CSV)
+`docassert rtm` renders the Requirements Traceability Matrix (Markdown or CSV)
 from the same graph — traceability you can see, derived rather than authored.
 
 The rules (required links, coverage, alignment prompts) live in
@@ -76,31 +76,31 @@ The rules (required links, coverage, alignment prompts) live in
 
 ## Project status (derived)
 
-`docunit status` produces a status view computed entirely from the documents —
+`docassert status` produces a status view computed entirely from the documents —
 no self-reported RAG. It reads every document's validity, the traceability
 coverage, the open risks, and derives its own health: **red** = something is
 objectively broken (a failing approved document or a dangling link), **amber** =
 carrying risk or coverage gaps, **green** = clean.
 
 ```bash
-docunit status                          # whole-repo markdown to stdout
-docunit status --format md --out STATUS.md       # the committed snapshot
-docunit status --project PRJ-001-AUR             # scope to one project
-docunit status --index                           # portfolio table (RAG per project)
-docunit status --format json                     # machine-readable
-docunit pages --out _site               # the full site: index + a page per project
+docassert status                          # whole-repo markdown to stdout
+docassert status --format md --out STATUS.md       # the committed snapshot
+docassert status --project PRJ-001-AUR             # scope to one project
+docassert status --index                           # portfolio table (RAG per project)
+docassert status --format json                     # machine-readable
+docassert pages --out _site               # the full site: index + a page per project
 ```
 
 Status is **per project**: `--project PRJ-NNN-CODE` scopes the documents,
 coverage, risks and RAG to one project, and `--index` rolls every project up
-into a portfolio table. `docunit rtm --project PRJ-NNN-CODE` scopes the
+into a portfolio table. `docassert rtm --project PRJ-NNN-CODE` scopes the
 traceability matrix the same way.
 
 Four ways it stays live:
 
 1. **`STATUS.md`** in the repo (regenerate with the command above).
 2. **A `status` CI job** posts the derived RAG + signals to every pull request.
-3. **A Pages site** — `.github/workflows/status-pages.yml` runs `docunit pages`
+3. **A Pages site** — `.github/workflows/status-pages.yml` runs `docassert pages`
    on every push to `main`, publishing a **portfolio index** (one linked RAG
    card per project) plus a **discrete status page for each project**.
    One-time setup: Settings → Pages → Source: **GitHub Actions**.
@@ -142,7 +142,7 @@ and the portfolio index shows an `X/Y required` stat per project.
                                             │
                                      open a Pull Request
                                             │
-                                 GitHub Actions runs docunit
+                                 GitHub Actions runs docassert
                                             │
               ┌─────────────────────────────┴─────────────────────────────┐
      structural checks (deterministic)                 semantic checks (AI)
@@ -170,13 +170,13 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"                 # add ".[ai]" for semantic scoring
 
 # validate the sample charter (passes)
-docunit validate documents/PRJ-001-AUR/charter.md
+docassert validate documents/PRJ-001-AUR/charter.md
 
 # validate every document across all projects
-docunit validate 'documents/**/*.md'
+docassert validate 'documents/**/*.md'
 
 # validate a deliberately weak one (3 blocking failures, exit code 3)
-docunit validate tests/fixtures/weak-example.md
+docassert validate tests/fixtures/weak-example.md
 
 # run the checker's own unit tests
 pytest
@@ -191,19 +191,19 @@ the structural gate still works.
 | Path | Purpose |
 |---|---|
 | `documents/PRJ-NNN-CODE/` | One folder per project — the source of truth. Each holds a `project.md` anchor plus its Markdown business documents. |
-| `projects.yaml` | Generated registry of all projects (`docunit projects`). Kept fresh by CI. |
+| `projects.yaml` | Generated registry of all projects (`docassert projects`). Kept fresh by CI. |
 | `templates/<kind>.template.md` | The canonical shape for each kind (fill these in). |
 | `schema/<kind>.schema.json` | JSON Schema for each kind's frontmatter. |
 | `criteria/<kind>.criteria.yaml` | The configurable audit standard — edit to tune what "passing" means. |
 | `consistency.yaml` | Cross-document traceability rules (required links, coverage, alignment). |
-| `docunit/` | The validator (loader, structural checks, semantic checks, graph, reports, CLI). |
+| `docassert/` | The validator (loader, structural checks, semantic checks, graph, reports, CLI). |
 | `.github/workflows/audit.yml` | Runs the audit + consistency on every PR and gates the merge. |
 | `.claude/skills/doc-to-pmo/` | The Claude skill that converts Word/PDF into a template document. |
 
 ## Adding the merge gate
 
 Once pushed to GitHub, protect `main` so the audit must pass:
-Settings → Branches → add a rule for `main` → require the **docunit audit**
+Settings → Branches → add a rule for `main` → require the **docassert audit**
 status check. After that, a PR whose changed documents fail any structural
 check cannot be merged until it's fixed.
 
@@ -211,5 +211,5 @@ check cannot be merged until it's fixed.
 
 Add `templates/<kind>.template.md`, `schema/<kind>.schema.json`, and
 `criteria/<kind>.criteria.yaml`. Structural checks are keyed by id in
-`docunit/structural.py`; reuse the existing ones or add new functions to the
+`docassert/structural.py`; reuse the existing ones or add new functions to the
 `CHECKS` registry.

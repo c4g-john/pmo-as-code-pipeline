@@ -1,7 +1,7 @@
-"""docunit command-line interface.
+"""docassert command-line interface.
 
-    docunit validate documents/charters/aurora.md
-    docunit validate documents/**/*.md --junit out.xml --markdown comment.md
+    docassert validate documents/charters/aurora.md
+    docassert validate documents/**/*.md --junit out.xml --markdown comment.md
 
 Exit code = number of BLOCKING (structural) failures. Advisory (AI) failures
 never affect the exit code, so CI is gated only by deterministic checks.
@@ -86,7 +86,7 @@ def _expand(paths: list[str]) -> list[str]:
 def cmd_validate(args: argparse.Namespace) -> int:
     files = _expand(args.paths)
     if not files:
-        print("docunit: no markdown documents matched.", file=sys.stderr)
+        print("docassert: no markdown documents matched.", file=sys.stderr)
         return 0
 
     id_index = _build_id_index()
@@ -95,7 +95,7 @@ def cmd_validate(args: argparse.Namespace) -> int:
         try:
             results_by_doc[path] = _validate_one(path, id_index)
         except FileNotFoundError as exc:
-            print(f"docunit: {exc}", file=sys.stderr)
+            print(f"docassert: {exc}", file=sys.stderr)
             return 2
         except ValueError as exc:  # malformed frontmatter → a real, blocking failure
             results_by_doc[path] = [CheckResult(
@@ -124,7 +124,7 @@ def cmd_consistency(args: argparse.Namespace) -> int:
         Path(args.junit).write_text(report.junit(results_by_doc))
     if args.markdown:
         Path(args.markdown).write_text(
-            report.markdown(results_by_doc, title="docunit consistency"))
+            report.markdown(results_by_doc, title="docassert consistency"))
 
     return sum(1 for r in results if r.is_blocking_failure)
 
@@ -140,7 +140,7 @@ def cmd_rtm(args: argparse.Namespace) -> int:
     text = rtm.render_csv(graph, code) if args.csv else rtm.render_markdown(graph, code)
     if args.out:
         Path(args.out).write_text(text)
-        print(f"docunit: wrote {args.out}")
+        print(f"docassert: wrote {args.out}")
     else:
         sys.stdout.write(text)
     return 0
@@ -151,22 +151,22 @@ def cmd_projects(args: argparse.Namespace) -> int:
     plist = proj.load_projects(DOCUMENTS_DIR)
     issues = proj.registry_issues(plist)
     for issue in issues:
-        print(f"docunit: {issue}", file=sys.stderr)
+        print(f"docassert: {issue}", file=sys.stderr)
     text = proj.render_yaml(plist)
 
     if args.check:
         current = Path(args.out or "projects.yaml")
         existing = current.read_text() if current.is_file() else ""
         if existing != text:
-            print(f"docunit: {current} is stale — run `docunit projects --out {current}`",
+            print(f"docassert: {current} is stale — run `docassert projects --out {current}`",
                   file=sys.stderr)
             return 1
-        print(f"docunit: {current} is up to date ({len(plist)} projects).")
+        print(f"docassert: {current} is up to date ({len(plist)} projects).")
         return 1 if issues else 0
 
     if args.out:
         Path(args.out).write_text(text)
-        print(f"docunit: wrote {args.out} ({len(plist)} projects)")
+        print(f"docassert: wrote {args.out} ({len(plist)} projects)")
     else:
         sys.stdout.write(text)
     return 1 if issues else 0
@@ -186,7 +186,7 @@ def cmd_status(args: argparse.Namespace) -> int:
     else:
         model = status_mod.build_status(DOCUMENTS_DIR, project=args.project)
         if args.project and not model["documents"]:
-            print(f"docunit: no documents for project {args.project!r}", file=sys.stderr)
+            print(f"docassert: no documents for project {args.project!r}", file=sys.stderr)
             return 2
         if args.format == "json":
             text = status_mod.render_json(model)
@@ -197,7 +197,7 @@ def cmd_status(args: argparse.Namespace) -> int:
         tag = model["rag"]
     if args.out:
         Path(args.out).write_text(text)
-        print(f"docunit: wrote {args.out} (status: {tag})")
+        print(f"docassert: wrote {args.out} (status: {tag})")
     else:
         sys.stdout.write(text)
     return 0
@@ -218,13 +218,13 @@ def cmd_pages(args: argparse.Namespace) -> int:
         (out / f"{p['id']}.html").write_text(status_mod.render_html(model))
 
     (out / "RTM.md").write_text(rtm.render_markdown(build_graph(DOCUMENTS_DIR)))
-    print(f"docunit: wrote {out}/ — index + {len(plist)} project page(s) + RTM.md "
+    print(f"docassert: wrote {out}/ — index + {len(plist)} project page(s) + RTM.md "
           f"(portfolio: {index['overall']['rag']})")
     return 0
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="docunit",
+    parser = argparse.ArgumentParser(prog="docassert",
                                      description="Unit testing for business documents.")
     sub = parser.add_subparsers(dest="command", required=True)
 
