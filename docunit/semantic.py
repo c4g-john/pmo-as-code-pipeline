@@ -78,13 +78,13 @@ def _grade(prompt: str, content: str, model: str) -> dict:
     return json.loads(text[start:end + 1])
 
 
-def run_semantic(doc: Document, spec: dict, content: str) -> CheckResult:
-    check_id = spec["id"]
-    prompt = spec.get("prompt", "").strip()
-    threshold = float(spec.get("pass_threshold", 0.7))
-    model = spec.get("model", DEFAULT_MODEL)
+def advisory(check_id: str, prompt: str, content: str,
+             threshold: float = 0.7, model: str = DEFAULT_MODEL) -> CheckResult:
+    """Grade one rubric prompt against `content`. Always advisory (non-blocking).
 
-    # Advisory checks are never blocking regardless of criteria config.
+    Fails safe: if the key is missing or the model errors, returns a skipped/
+    unavailable result rather than raising, so it can never block a merge.
+    """
     if not os.environ.get("ANTHROPIC_API_KEY"):
         return CheckResult(check_id, True, False,
                            "skipped — no ANTHROPIC_API_KEY (advisory only)",
@@ -107,3 +107,18 @@ def run_semantic(doc: Document, spec: dict, content: str) -> CheckResult:
     return CheckResult(check_id, passed, False,
                        rationale or f"score {score:.2f} (threshold {threshold:.2f})",
                        kind="semantic", score=score)
+
+
+def run_semantic(doc: Document, spec: dict, content: str) -> CheckResult:
+    return advisory(
+        spec["id"], spec.get("prompt", "").strip(), content,
+        threshold=float(spec.get("pass_threshold", 0.7)),
+        model=spec.get("model", DEFAULT_MODEL),
+    )
+
+
+def run_alignment(check_id: str, prompt: str, parent_text: str,
+                  child_text: str, threshold: float = 0.7) -> CheckResult:
+    """Advisory: does the child item genuinely fulfil the parent it links to?"""
+    content = f"PARENT:\n{parent_text}\n\nCHILD:\n{child_text}"
+    return advisory(check_id, prompt, content, threshold=threshold)

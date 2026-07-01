@@ -11,6 +11,9 @@ __pycache__/
 # CI artifacts (generated, not committed)
 comment.md
 report.xml
+consistency.md
+consistency.xml
+RTM.md
 
 # macOS
 .DS_Store

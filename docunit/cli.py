@@ -15,7 +15,9 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-from . import report
+from . import report, rtm
+from .consistency import run_consistency
+from .graph import build_graph
 from .loader import load, load_criteria
 from .models import CheckResult
 from .structural import run_structural
@@ -51,6 +53,7 @@ def _validate_one(path: str, id_index: dict) -> list[CheckResult]:
     ctx = {
         "schema": schema,
         "required_sections": criteria.get("required_sections", []),
+        "item_sections": criteria.get("item_sections", []),
         "id_index": id_index,
     }
     content = Path(path).read_text(encoding="utf-8")
@@ -108,6 +111,33 @@ def cmd_validate(args: argparse.Namespace) -> int:
                for r in rs if r.is_blocking_failure)
 
 
+def cmd_consistency(args: argparse.Namespace) -> int:
+    results = run_consistency(DOCUMENTS_DIR, with_semantic=not args.no_semantic)
+    results_by_doc = {"consistency (cross-document)": results}
+
+    print(report.console(results_by_doc))
+    print("\n" + report.summary_line(results_by_doc))
+
+    if args.junit:
+        Path(args.junit).write_text(report.junit(results_by_doc))
+    if args.markdown:
+        Path(args.markdown).write_text(
+            report.markdown(results_by_doc, title="docunit consistency"))
+
+    return sum(1 for r in results if r.is_blocking_failure)
+
+
+def cmd_rtm(args: argparse.Namespace) -> int:
+    graph = build_graph(DOCUMENTS_DIR)
+    text = rtm.render_csv(graph) if args.csv else rtm.render_markdown(graph)
+    if args.out:
+        Path(args.out).write_text(text)
+        print(f"docunit: wrote {args.out}")
+    else:
+        sys.stdout.write(text)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="docunit",
                                      description="Unit testing for business documents.")
@@ -118,6 +148,18 @@ def main(argv: list[str] | None = None) -> int:
     v.add_argument("--junit", help="Write a JUnit XML report to this path.")
     v.add_argument("--markdown", help="Write a PR-comment markdown report to this path.")
     v.set_defaults(func=cmd_validate)
+
+    c = sub.add_parser("consistency", help="Check cross-document traceability.")
+    c.add_argument("--junit", help="Write a JUnit XML report to this path.")
+    c.add_argument("--markdown", help="Write a PR-comment markdown report to this path.")
+    c.add_argument("--no-semantic", action="store_true",
+                   help="Skip AI alignment (structural consistency only).")
+    c.set_defaults(func=cmd_consistency)
+
+    r = sub.add_parser("rtm", help="Generate the requirements traceability matrix.")
+    r.add_argument("--out", help="Write to this path instead of stdout.")
+    r.add_argument("--csv", action="store_true", help="Emit CSV instead of Markdown.")
+    r.set_defaults(func=cmd_rtm)
 
     args = parser.parse_args(argv)
     return args.func(args)

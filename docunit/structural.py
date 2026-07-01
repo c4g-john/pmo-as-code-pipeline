@@ -7,6 +7,7 @@ from typing import Callable
 
 from jsonschema import Draft7Validator, FormatChecker
 
+from .loader import iter_item_lines
 from .models import CheckResult, Document
 
 # ── measurability heuristic ────────────────────────────────────────────────
@@ -77,7 +78,7 @@ def check_frontmatter_schema(doc: Document, ctx: dict) -> tuple[bool, str]:
     validator = Draft7Validator(schema, format_checker=FormatChecker())
     errors = sorted(validator.iter_errors(_jsonify(doc.frontmatter)), key=str)
     if not errors:
-        return True, "Frontmatter is valid against the charter schema."
+        return True, "Frontmatter is valid against the schema."
     msgs = "; ".join(f"{'/'.join(str(p) for p in e.path) or '(root)'}: {e.message}"
                      for e in errors)
     return False, f"Frontmatter schema errors: {msgs}"
@@ -148,6 +149,31 @@ def check_unique_id(doc: Document, ctx: dict) -> tuple[bool, str]:
     return True, f"id '{doc.id}' is unique."
 
 
+def check_items_well_formed(doc: Document, ctx: dict) -> tuple[bool, str]:
+    """Every bullet in a declared item-section is a valid, correctly-prefixed
+    traceable item (``**PREFIX-123** (links): text``)."""
+    specs = ctx.get("item_sections") or []
+    if not specs:
+        return True, "No item sections for this kind."
+    problems: list[str] = []
+    total = 0
+    for spec in specs:
+        section = doc.section(spec["section"])
+        if section is None:
+            continue  # a missing section is the required-sections check's job
+        for raw, m in iter_item_lines(section):
+            total += 1
+            if not m:
+                problems.append(f'malformed item in "{spec["section"]}": “{raw[:50]}”')
+            elif m.group("prefix") != spec["prefix"]:
+                problems.append(
+                    f'“{m.group("id")}” in "{spec["section"]}" should use prefix '
+                    f'{spec["prefix"]}-')
+    if problems:
+        return False, "; ".join(problems)
+    return True, f"All {total} item(s) well-formed."
+
+
 CHECKS: dict[str, Callable[[Document, dict], tuple[bool, str]]] = {
     "frontmatter-schema": check_frontmatter_schema,
     "required-sections": check_required_sections,
@@ -155,6 +181,7 @@ CHECKS: dict[str, Callable[[Document, dict], tuple[bool, str]]] = {
     "risks-have-owner-and-mitigation": check_risks_owner_mitigation,
     "dates-consistent": check_dates_consistent,
     "unique-id": check_unique_id,
+    "items-well-formed": check_items_well_formed,
 }
 
 

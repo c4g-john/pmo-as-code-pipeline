@@ -74,3 +74,23 @@ class CheckResult:
     @property
     def is_blocking_failure(self) -> bool:
         return self.blocking and not self.passed
+
+
+@dataclass
+class Item:
+    """A traceable item inside a document (a requirement, criterion, test, …).
+
+    Authored as a bullet like:
+        - **PR-014** (traces: BR-001, BR-003): The onboarding flow shall be self-serve.
+    """
+    id: str                              # e.g. "PR-014"
+    prefix: str                          # e.g. "PR"
+    text: str
+    links: dict[str, list[str]]          # relation -> [target ids], e.g. {"traces": ["BR-001"]}
+    doc_path: str
+    doc_kind: str
+    doc_status: str
+    section: str
+
+    def targets(self, relation: str) -> list[str]:
+        return self.links.get(relation, [])
