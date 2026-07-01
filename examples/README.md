@@ -1,7 +1,7 @@
 # The conversion front-door
 
 This directory demonstrates the front of the pipeline: turning an arbitrary
-source document into a standard template document that `docunit` can validate.
+source document into a standard template document that `docassert` can validate.
 
 ## The flow
 

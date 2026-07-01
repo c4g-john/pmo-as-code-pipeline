@@ -14,7 +14,7 @@ from pathlib import Path
 from .models import CheckResult, Document
 
 DEFAULT_MODEL = os.environ.get("DOCUNIT_MODEL", "claude-sonnet-5")
-CACHE_DIR = Path(os.environ.get("DOCUNIT_CACHE", ".docunit-cache"))
+CACHE_DIR = Path(os.environ.get("DOCUNIT_CACHE", ".docassert-cache"))
 
 _SYSTEM = (
     "You are a meticulous document auditor. You are given one audit criterion "

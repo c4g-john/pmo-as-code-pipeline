@@ -1,4 +1,4 @@
-"""Shared data types for docunit."""
+"""Shared data types for docassert."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field

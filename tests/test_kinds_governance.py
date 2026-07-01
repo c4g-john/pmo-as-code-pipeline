@@ -1,7 +1,7 @@
 """Tests for the risk & governance kinds (risk-register, adr, raci-stakeholder)."""
-from docunit.loader import parse_sections
-from docunit.models import Document
-from docunit.structural import (
+from docassert.loader import parse_sections
+from docassert.models import Document
+from docassert.structural import (
     check_risk_items_complete,
     check_adr_items_have_status,
     check_raci_one_accountable,

@@ -2,9 +2,9 @@
 import os
 from pathlib import Path
 
-from docunit import profiles as P
-from docunit import status as S
-from docunit import consistency as C
+from docassert import profiles as P
+from docassert import status as S
+from docassert import consistency as C
 
 ROOT = Path(__file__).resolve().parent.parent
 PROFILES = ROOT / "profiles"

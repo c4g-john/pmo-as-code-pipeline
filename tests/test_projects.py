@@ -3,9 +3,9 @@ from pathlib import Path
 
 import yaml
 
-from docunit import projects as P
-from docunit.models import Document
-from docunit.structural import check_project_id_format
+from docassert import projects as P
+from docassert.models import Document
+from docassert.structural import check_project_id_format
 
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "documents"

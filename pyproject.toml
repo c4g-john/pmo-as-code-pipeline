@@ -1,5 +1,5 @@
 [project]
-name = "docunit"
+name = "docassert"
 version = "0.1.0"
 description = "Unit testing for business documents — validate structured Markdown docs against a configurable audit standard."
 readme = "README.md"
@@ -16,17 +16,17 @@ convert = ["python-docx>=1.1", "pypdf>=4.0"]   # source extraction for doc-to-pm
 dev = ["pytest>=8.0"]
 
 [project.scripts]
-docunit = "docunit.cli:main"
+docassert = "docassert.cli:main"
 
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["docunit"]
+packages = ["docassert"]
 
 [tool.pytest.ini_options]
-# Import docunit from the repo root without relying on an editable install
+# Import docassert from the repo root without relying on an editable install
 # (avoids editable-install quirks on newer Python versions).
 pythonpath = ["."]
 testpaths = ["tests"]
