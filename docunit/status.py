@@ -13,6 +13,7 @@ from .consistency import load_config
 from .graph import build_graph
 from .loader import load, load_criteria
 from .structural import run_structural, _field_value
+from . import profiles as profiles_mod
 
 CRITERIA_DIR = Path("criteria")
 SCHEMA_DIR = Path("schema")
@@ -140,9 +141,12 @@ def build_status(documents_dir=DOCUMENTS_DIR, project: str | None = None) -> dic
         "passing": _doc_passes(d, id_index),
     } for d in docs]
 
+    completeness = None
     if project:
         anchor = next((d for d in docs if d.kind == "project"), None)
         title = str(anchor.frontmatter.get("name", project)) if anchor else project
+        if anchor is not None:
+            completeness = _completeness_for(anchor, documents)
     else:
         title = "Project Status"
 
@@ -160,9 +164,34 @@ def build_status(documents_dir=DOCUMENTS_DIR, project: str | None = None) -> dic
         "risks": _risks(graph, code),
         "broken_references": _broken_references(graph, code),
         "latest_report": _latest_report(docs),
+        "completeness": completeness,
     }
     model["rag"] = derive_rag(model)
     return model
+
+
+def _completeness_for(anchor, documents: list[dict]) -> dict | None:
+    """Assess a project's documents against the profile its anchor declares."""
+    prof_name = anchor.frontmatter.get("profile")
+    if not prof_name:
+        return None
+    profile = profiles_mod.load_profile(prof_name)
+    if profile is None:
+        return profiles_mod.unknown(prof_name)
+    return profiles_mod.completeness(
+        profile, documents, str(anchor.frontmatter.get("status", "")))
+
+
+def completeness_report(documents_dir=DOCUMENTS_DIR) -> list[dict]:
+    """Per-project completeness for every profiled project (used by the
+    blocking profile-completeness consistency check)."""
+    from . import projects as projects_mod
+    out = []
+    for p in projects_mod.load_projects(documents_dir):
+        comp = build_status(documents_dir, project=p["id"]).get("completeness")
+        if comp:
+            out.append({"id": p["id"], "name": p["name"], "lifecycle": p["status"], **comp})
+    return out
 
 
 def build_index(documents_dir=DOCUMENTS_DIR) -> dict:
@@ -181,6 +210,7 @@ def build_index(documents_dir=DOCUMENTS_DIR) -> dict:
             "risks": len(m["risks"]),
             "coverage_gaps": sum(len(c["gaps"]) for c in m["coverage"]),
             "broken": len(m["broken_references"]),
+            "completeness": m.get("completeness"),
         })
     return {"projects": cards, "overall": build_status(documents_dir)}
 
@@ -188,13 +218,16 @@ def build_index(documents_dir=DOCUMENTS_DIR) -> dict:
 def derive_rag(model) -> str:
     """Red = something is objectively broken. Amber = carrying risk or
     incompleteness. Green = clean."""
+    comp = model.get("completeness")
     approved_failing = any(not d["passing"] for d in model["documents"]
                            if d["status"] in APPROVED)
-    if approved_failing or model["broken_references"]:
+    if approved_failing or model["broken_references"] or (comp and comp["blocks"]):
         return "red"
     coverage_gap = any(c["gaps"] for c in model["coverage"])
     reported = (model["latest_report"] or {}).get("rag")
-    if coverage_gap or model["risks"] or reported in {"amber", "red"}:
+    completeness_gap = bool(comp and (comp["missing_required"] or comp["incomplete_required"]
+                                      or comp["recommended_gaps"] or comp.get("unknown")))
+    if coverage_gap or model["risks"] or reported in {"amber", "red"} or completeness_gap:
         return "amber"
     return "green"
 
@@ -218,6 +251,21 @@ def render_markdown(model, summary: bool = False) -> str:
         mark = "🟢" if not cov["gaps"] else "🟠"
         detail = f" — gaps: {', '.join(cov['gaps'])}" if cov["gaps"] else ""
         out.append(f"- {mark} **{cov['label']}**: {cov['covered']}/{cov['total']} ({pct}%){detail}")
+
+    comp = model.get("completeness")
+    if comp and comp.get("unknown"):
+        out.append(f"- 🟠 **Profile** `{comp['profile']}` not found under profiles/")
+    elif comp:
+        mark = "🔴" if comp["blocks"] else (
+            "🟠" if (comp["missing_required"] or comp["incomplete_required"]) else "🟢")
+        if comp["missing_required"]:
+            detail = f" — missing: {', '.join(comp['missing_required'])}"
+        elif comp["incomplete_required"]:
+            detail = f" — incomplete: {', '.join(comp['incomplete_required'])}"
+        else:
+            detail = ""
+        out.append(f"- {mark} **Required documents** ({comp['profile']}): "
+                   f"{comp['required_complete']}/{comp['required_total']} complete{detail}")
 
     if model["broken_references"]:
         out.append(f"- 🔴 **Broken references**: {len(model['broken_references'])} "
@@ -343,6 +391,42 @@ def render_html(model) -> str:
               if lr else "None on record.")
     gen = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
+    comp = model.get("completeness")
+    document_set = ""
+    if comp and comp.get("unknown"):
+        document_set = (f'<section><h2>Document set</h2><p style="color:var(--bad)">'
+                        f'Profile <code>{esc(comp["profile"])}</code> not found under profiles/.</p></section>')
+    elif comp:
+        _st = {"complete": ("var(--ok)", "complete"),
+               "incomplete": ("var(--amber)", "incomplete"),
+               "missing": ("var(--bad)", "missing")}
+
+        def _row(item, required):
+            col, lab = _st[item["state"]]
+            if item["state"] == "missing" and not required:
+                col, lab = "var(--muted)", "not added"
+            return (f'<tr><td><code>{esc(item["kind"])}</code></td>'
+                    f'<td style="color:{col};font-weight:600;">{lab}</td></tr>')
+
+        req_rows = "".join(_row(i, True) for i in comp["required"])
+        rec_rows = "".join(_row(i, False) for i in comp["recommended"])
+        sep = ('<tr><td colspan="2" style="color:var(--muted);border:0;padding:14px 10px 4px;'
+               'font-size:11px;text-transform:uppercase;letter-spacing:.05em;">Recommended</td></tr>'
+               if rec_rows else "")
+        if comp["blocks"]:
+            note = (f'<p style="color:var(--bad);font-size:13px;margin:0 0 10px;">Missing required: '
+                    f'<code>{esc(", ".join(comp["missing_required"]))}</code> — blocks release '
+                    f'while <code>{esc(comp["enforce_when"])}</code>.</p>')
+        elif comp["missing_required"] or comp["incomplete_required"]:
+            note = (f'<p style="color:var(--amber);font-size:13px;margin:0 0 10px;">Advisory until '
+                    f'the project is <code>{esc(comp["enforce_when"])}</code>.</p>')
+        else:
+            note = ""
+        document_set = (f'<section><h2>Document set · {esc(comp["profile"])} '
+                        f'({comp["required_complete"]}/{comp["required_total"]} required complete)</h2>'
+                        f'{note}<table><thead><tr><th>Kind</th><th>State</th></tr></thead>'
+                        f'<tbody>{req_rows}{sep}{rec_rows}</tbody></table></section>')
+
     title = esc(model.get("title", "Project Status"))
     pid = model.get("project")
     back = '<a class="back" href="index.html">← all projects</a>' if pid else ""
@@ -363,6 +447,7 @@ def render_html(model) -> str:
   <p class="meta">Derived from {c['total']} documents · {c['kinds']} kinds ·
     {c['approved']} approved{scope} · generated {gen}. Do not edit — regenerated from the documents.</p>
   <section><h2>Traceability coverage</h2>{coverage}</section>
+  {document_set}
   {problems}
   <section><h2>Open risks ({len(model['risks'])})</h2><ul>{risks}</ul></section>
   <section><h2>Latest status report</h2><p>{report}</p></section>
@@ -384,6 +469,9 @@ def _index_card(p, esc) -> str:
         return f"{n} {word}" + ("s" if n != 1 else "")
 
     stats = [plural(p["total"], "doc")]
+    comp = p.get("completeness")
+    if comp and not comp.get("unknown"):
+        stats.append(f'{comp["required_complete"]}/{comp["required_total"]} required')
     if p["risks"]:
         stats.append(plural(p["risks"], "open risk"))
     if p["coverage_gaps"]:
@@ -407,12 +495,15 @@ def render_index_markdown(index) -> str:
     """A portfolio table: one row per project with its derived RAG."""
     overall = index["overall"]["rag"]
     out = [f"# Projects — {_EMOJI[overall]} {overall.upper()}", "",
-           "| Project | Code | RAG | Docs | Open risks | Coverage gaps | Sponsor |",
+           "| Project | Code | RAG | Docs | Required | Open risks | Sponsor |",
            "|---|---|---|---|---|---|---|"]
     for p in index["projects"]:
+        comp = p.get("completeness")
+        required = (f"{comp['required_complete']}/{comp['required_total']} ({comp['profile']})"
+                    if comp and not comp.get("unknown") else "—")
         out.append(
             f"| {p['name']} | `{p['code']}` | {_EMOJI[p['rag']]} {p['rag'].upper()} "
-            f"| {p['total']} | {p['risks']} | {p['coverage_gaps']} | {p['sponsor']} |")
+            f"| {p['total']} | {required} | {p['risks']} | {p['sponsor']} |")
     return "\n".join(out) + "\n"
 
 

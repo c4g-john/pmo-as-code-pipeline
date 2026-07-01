@@ -106,6 +106,35 @@ Four ways it stays live:
    One-time setup: Settings → Pages → Source: **GitHub Actions**.
 4. **`projects.yaml`** — the generated registry of every project.
 
+## Profiles — the expected document set
+
+Derived status can only report on documents that exist. A **profile** says which
+kinds a project is *expected* to carry, so the project page can flag what's
+required but missing. A project opts in with `profile: <name>` in its
+`project.md`; profiles live in `profiles/*.yaml`:
+
+```yaml
+# profiles/lean-startup.yaml
+name: lean-startup
+enforce_when: active            # completeness blocks only once the project is active
+expects:
+  required:    [charter, brd, prd, test-cases]
+  recommended: [risk-register]
+```
+
+Each expected kind is classified on the project page:
+
+- **complete** — present, approved/baselined, and passing its audit
+- **incomplete** — present but still draft/proposed, or failing
+- **missing** — no document of that kind
+
+A **required** kind that's missing blocks CI via the `profile-completeness`
+consistency check — but only once the project reaches `enforce_when`; a
+`proposed` project shows the same gaps as advisory amber and never blocks.
+**recommended** kinds are surfaced but never block, and a project with no
+`profile` has no expectations at all. The status page renders the full checklist
+and the portfolio index shows an `X/Y required` stat per project.
+
 ## How it works
 
 ```

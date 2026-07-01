@@ -5,6 +5,7 @@ code: ATL
 name: Atlas — Partner Portal Modernization
 sponsor: mia.chen
 status: proposed
+profile: lean-startup
 ---
 
 ## Overview
