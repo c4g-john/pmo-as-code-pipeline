@@ -83,19 +83,28 @@ objectively broken (a failing approved document or a dangling link), **amber** =
 carrying risk or coverage gaps, **green** = clean.
 
 ```bash
-docunit status                       # markdown to stdout
-docunit status --format md  --out STATUS.md    # the committed snapshot
-docunit status --format json                    # machine-readable
-docunit status --format html --out index.html  # a self-contained dashboard
+docunit status                          # whole-repo markdown to stdout
+docunit status --format md --out STATUS.md       # the committed snapshot
+docunit status --project PRJ-001-AUR             # scope to one project
+docunit status --index                           # portfolio table (RAG per project)
+docunit status --format json                     # machine-readable
+docunit pages --out _site               # the full site: index + a page per project
 ```
 
-Three ways it stays live:
+Status is **per project**: `--project PRJ-NNN-CODE` scopes the documents,
+coverage, risks and RAG to one project, and `--index` rolls every project up
+into a portfolio table. `docunit rtm --project PRJ-NNN-CODE` scopes the
+traceability matrix the same way.
+
+Four ways it stays live:
 
 1. **`STATUS.md`** in the repo (regenerate with the command above).
 2. **A `status` CI job** posts the derived RAG + signals to every pull request.
-3. **A Pages dashboard** — `.github/workflows/status-pages.yml` builds
-   `docunit status --format html` and publishes it on every push to `main`.
+3. **A Pages site** — `.github/workflows/status-pages.yml` runs `docunit pages`
+   on every push to `main`, publishing a **portfolio index** (one linked RAG
+   card per project) plus a **discrete status page for each project**.
    One-time setup: Settings → Pages → Source: **GitHub Actions**.
+4. **`projects.yaml`** — the generated registry of every project.
 
 ## How it works
 

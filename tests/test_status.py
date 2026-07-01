@@ -80,3 +80,49 @@ def test_render_json_roundtrips():
     _cd_root()
     data = json.loads(S.render_json(S.build_status(ROOT / "documents")))
     assert data["rag"] == "amber" and data["counts"]["total"] >= 20
+
+
+# ── per-project scoping (Phase 2) ───────────────────────────────────────────
+def test_build_status_scoped_to_one_project():
+    _cd_root()
+    m = S.build_status(ROOT / "documents", project="PRJ-002-ATL")
+    ids = {d["id"] for d in m["documents"]}
+    assert "ATL-brd" in ids and "AUR-brd" not in ids
+    assert m["project"] == "PRJ-002-ATL"
+    # coverage counts only Atlas' own business requirements
+    brs = next(c for c in m["coverage"] if "business requirement" in c["label"])
+    assert brs["total"] == 2
+    # Atlas carries no open risks → green
+    assert m["risks"] == [] and m["rag"] == "green"
+
+
+def test_build_status_scopes_risks_to_that_project():
+    _cd_root()
+    m = S.build_status(ROOT / "documents", project="PRJ-001-AUR")
+    assert {r["id"] for r in m["risks"]} == {"AUR-RISK-001", "AUR-RISK-002"}
+
+
+def test_build_index_one_card_per_project():
+    _cd_root()
+    idx = S.build_index(ROOT / "documents")
+    by_code = {c["code"]: c for c in idx["projects"]}
+    assert set(by_code) == {"AUR", "ATL", "MER", "PHX"}
+    assert by_code["AUR"]["rag"] == "amber" and by_code["AUR"]["risks"] == 2
+    assert by_code["ATL"]["rag"] == "green"
+    assert idx["overall"]["rag"] == "amber"
+
+
+def test_render_index_html_links_projects_and_is_self_contained():
+    _cd_root()
+    out = S.render_index_html(S.build_index(ROOT / "documents"))
+    assert out.startswith("<!doctype html>")
+    assert 'href="PRJ-001-AUR.html"' in out and 'href="PRJ-002-ATL.html"' in out
+    assert "http://" not in out and "https://" not in out
+
+
+def test_render_project_page_has_back_link_and_scoped_title():
+    _cd_root()
+    out = S.render_html(S.build_status(ROOT / "documents", project="PRJ-002-ATL"))
+    assert 'href="index.html"' in out          # back to the portfolio index
+    assert "Atlas" in out and "GREEN" in out
+    assert "http://" not in out and "https://" not in out
