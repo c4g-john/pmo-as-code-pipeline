@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import glob
+import os
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -68,10 +69,10 @@ def _expand(paths: list[str]) -> list[str]:
     for p in paths:
         matched = glob.glob(p, recursive=True)
         files.extend(matched if matched else [p])
-    # de-dupe, keep only markdown docs
+    # de-dupe; keep only markdown docs that still exist (skip files a PR deleted)
     seen, out = set(), []
     for f in files:
-        if f.endswith(".md") and f not in seen:
+        if f.endswith(".md") and f not in seen and os.path.isfile(f):
             seen.add(f)
             out.append(f)
     return out

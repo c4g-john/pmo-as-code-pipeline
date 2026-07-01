@@ -23,3 +23,9 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages = ["docunit"]
+
+[tool.pytest.ini_options]
+# Import docunit from the repo root without relying on an editable install
+# (avoids editable-install quirks on newer Python versions).
+pythonpath = ["."]
+testpaths = ["tests"]
