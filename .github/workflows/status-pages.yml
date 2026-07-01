@@ -29,7 +29,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install docassert
+      - run: pip install docassert==0.3.0
 
       - name: Build the status site
         # One command builds the whole site: a portfolio index (one RAG card per
