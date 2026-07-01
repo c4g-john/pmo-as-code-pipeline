@@ -16,10 +16,17 @@ This is the working core of **PMO as Code**.
 ## Document kinds
 
 Each kind is defined by a trio: `templates/<kind>.template.md`,
-`schema/<kind>.schema.json`, and `criteria/<kind>.criteria.yaml`. Supported
-today: `charter`, `business-case`, `brd`, `prd`, `frnfr` (functional &
-non-functional requirements), `test-cases`. Adding a kind is adding a trio — no
-code change for the common cases.
+`schema/<kind>.schema.json`, and `criteria/<kind>.criteria.yaml`. Adding a kind
+is adding a trio — no code change for the common cases. Supported today:
+
+- **Discovery:** `charter`, `business-case`
+- **Requirements:** `brd`, `prd`, `frnfr`, `user-story`, `test-cases`
+- **Design & governance:** `adr`, `risk-register`, `raci-stakeholder`
+- **Delivery:** `qa-test-plan`, `data-migration-plan`
+- **Release & operate:** `release-cutover-plan`, `rollback-plan`,
+  `hypercare-plan`, `runbook`
+- **Report & close:** `status-report`, `post-implementation-review`,
+  `benefits-realization`
 
 ## Traceability & consistency
 

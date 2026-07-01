@@ -55,6 +55,7 @@ def _validate_one(path: str, id_index: dict) -> list[CheckResult]:
         "required_sections": criteria.get("required_sections", []),
         "item_sections": criteria.get("item_sections", []),
         "steps_sections": criteria.get("steps_sections", []),
+        "measurable_sections": criteria.get("measurable_sections", []),
         "id_index": id_index,
     }
     content = Path(path).read_text(encoding="utf-8")
