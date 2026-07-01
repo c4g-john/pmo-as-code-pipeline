@@ -46,12 +46,16 @@ def _doc_passes(doc, id_index) -> bool:
 
 
 # ── signal extractors ───────────────────────────────────────────────────────
-def _coverage(graph, config):
+# `code` optionally scopes a signal to one project (by item project code, e.g.
+# "AUR"). The graph itself stays global so cross-project link targets resolve.
+def _coverage(graph, config, code=None):
     out = []
     for rule in config.get("coverage", []):
         parent_prefix, relation = rule["parent"], rule["relation"]
         by_prefix = rule.get("by_prefix")
         parents = graph.by_type.get(parent_prefix, [])
+        if code:
+            parents = [p for p in parents if p.project == code]
         covered = [p for p in parents if graph.children(p.id, relation, by_prefix)]
         out.append({
             "label": rule.get("label", f"{parent_prefix} → {by_prefix}"),
@@ -62,9 +66,11 @@ def _coverage(graph, config):
     return out
 
 
-def _risks(graph):
+def _risks(graph, code=None):
     risks = []
     for item in graph.by_type.get("RISK", []):
+        if code and item.project != code:
+            continue
         prob = (_field_value(item.text, "probability") or "").lower()
         impact = (_field_value(item.text, "impact") or "").lower()
         risks.append({
@@ -77,9 +83,11 @@ def _risks(graph):
     return sorted(risks, key=lambda r: -r["score"])
 
 
-def _broken_references(graph):
+def _broken_references(graph, code=None):
     broken = []
     for item in graph.all_items():
+        if code and item.project != code:
+            continue
         for relation, targets in item.links.items():
             for target in targets:
                 if not graph.exists(target):
@@ -101,13 +109,27 @@ def _latest_report(docs):
 
 
 # ── the model + derived RAG ─────────────────────────────────────────────────
-def build_status(documents_dir=DOCUMENTS_DIR) -> dict:
-    docs = [load(p) for p in sorted(Path(documents_dir).rglob("*.md"))]
+def build_status(documents_dir=DOCUMENTS_DIR, project: str | None = None) -> dict:
+    """Derive the status model for the whole repo, or for one project.
+
+    `project` is a canonical project id (PRJ-NNN-CODE). When given, documents,
+    coverage, risks, broken references and the latest report are all scoped to
+    that project; the graph stays global so cross-project targets still resolve.
+    """
+    all_docs = [load(p) for p in sorted(Path(documents_dir).rglob("*.md"))]
     graph = build_graph(documents_dir)
     config = load_config()
 
+    code = project.split("-")[-1] if project else None
+    if project:
+        docs = [d for d in all_docs
+                if d.frontmatter.get("project") == project
+                or (d.kind == "project" and d.id == project)]
+    else:
+        docs = all_docs
+
     id_index = {}
-    for d in docs:
+    for d in all_docs:                       # uniqueness is always global
         id_index.setdefault(d.id, []).append(d.path)
 
     documents = [{
@@ -118,7 +140,15 @@ def build_status(documents_dir=DOCUMENTS_DIR) -> dict:
         "passing": _doc_passes(d, id_index),
     } for d in docs]
 
+    if project:
+        anchor = next((d for d in docs if d.kind == "project"), None)
+        title = str(anchor.frontmatter.get("name", project)) if anchor else project
+    else:
+        title = "Project Status"
+
     model = {
+        "project": project,
+        "title": title,
         "documents": documents,
         "counts": {
             "total": len(documents),
@@ -126,13 +156,33 @@ def build_status(documents_dir=DOCUMENTS_DIR) -> dict:
             "approved": sum(1 for d in documents if d["status"] in APPROVED),
             "failing": sum(1 for d in documents if not d["passing"]),
         },
-        "coverage": _coverage(graph, config),
-        "risks": _risks(graph),
-        "broken_references": _broken_references(graph),
+        "coverage": _coverage(graph, config, code),
+        "risks": _risks(graph, code),
+        "broken_references": _broken_references(graph, code),
         "latest_report": _latest_report(docs),
     }
     model["rag"] = derive_rag(model)
     return model
+
+
+def build_index(documents_dir=DOCUMENTS_DIR) -> dict:
+    """The multi-project view: each project's derived RAG + headline signals,
+    plus the whole-repo rollup."""
+    from . import projects as projects_mod
+    cards = []
+    for p in projects_mod.load_projects(documents_dir):
+        m = build_status(documents_dir, project=p["id"])
+        cards.append({
+            "id": p["id"], "code": p["code"], "name": p["name"],
+            "sponsor": p["sponsor"], "lifecycle": p["status"],
+            "rag": m["rag"],
+            "total": m["counts"]["total"],
+            "failing": m["counts"]["failing"],
+            "risks": len(m["risks"]),
+            "coverage_gaps": sum(len(c["gaps"]) for c in m["coverage"]),
+            "broken": len(m["broken_references"]),
+        })
+    return {"projects": cards, "overall": build_status(documents_dir)}
 
 
 def derive_rag(model) -> str:
@@ -156,7 +206,8 @@ _EMOJI = {"green": "🟢", "amber": "🟠", "red": "🔴"}
 def render_markdown(model, summary: bool = False) -> str:
     rag = model["rag"]
     c = model["counts"]
-    heading = "## Project Status" if summary else "# Project Status"
+    title = model.get("title", "Project Status")
+    heading = ("## " if summary else "# ") + title
     out = [f"{heading} — {_EMOJI[rag]} {rag.upper()}", ""]
     out.append(f"_Derived from {c['total']} documents across {c['kinds']} kinds "
                f"({c['approved']} approved). Generated by `docunit status` — do not edit._")
@@ -225,6 +276,26 @@ _HTML_CSS = """
   th { color:var(--muted); font-weight:600; }
   td.ok { color:var(--ok); } td.bad { color:var(--bad); font-weight:700; }
   footer { color:var(--muted); font-size:12px; margin-top:36px; border-top:1px solid var(--border); padding-top:14px; }
+  .back { display:inline-block; color:var(--muted); text-decoration:none; font-size:13px; margin-bottom:14px; }
+  .back:hover { color:var(--ink); }
+"""
+
+_INDEX_CSS = """
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:16px; }
+  a.card { display:block; background:var(--panel); border:1px solid var(--border);
+           border-radius:10px; padding:18px; text-decoration:none; color:var(--ink);
+           transition:border-color .15s, transform .15s; }
+  a.card:hover { border-color:var(--muted); transform:translateY(-2px); }
+  .card-h { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+  .dot { width:10px; height:10px; border-radius:50%; }
+  .rag-t { font-size:12px; font-weight:700; letter-spacing:.06em; }
+  .code { margin-left:auto; font:12px ui-monospace,SFMono-Regular,Menlo,monospace;
+          background:#21262d; color:var(--muted); padding:2px 7px; border-radius:5px; }
+  .name { font-size:16px; font-weight:600; margin-bottom:3px; }
+  .card .pid { color:var(--muted); font-size:12px;
+               font-family:ui-monospace,SFMono-Regular,Menlo,monospace; margin-bottom:8px; }
+  .sponsor { font-size:13px; color:var(--muted); margin-bottom:10px; }
+  .stats { font-size:12.5px; color:var(--muted); border-top:1px solid var(--border); padding-top:8px; }
 """
 
 
@@ -272,19 +343,25 @@ def render_html(model) -> str:
               if lr else "None on record.")
     gen = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
+    title = esc(model.get("title", "Project Status"))
+    pid = model.get("project")
+    back = '<a class="back" href="index.html">← all projects</a>' if pid else ""
+    scope = f" · <code>{esc(pid)}</code>" if pid else ""
+
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Project Status — {rag.upper()}</title>
+<title>{title} — {rag.upper()}</title>
 <style>{_HTML_CSS}
   .bar-f {{ background:{bar_color}; }}</style></head>
 <body><main>
+  {back}
   <header>
     <span class="rag" style="background:{color}">{rag.upper()}</span>
-    <h1>Project Status</h1>
+    <h1>{title}</h1>
   </header>
   <p class="meta">Derived from {c['total']} documents · {c['kinds']} kinds ·
-    {c['approved']} approved · generated {gen}. Do not edit — regenerated from the documents.</p>
+    {c['approved']} approved{scope} · generated {gen}. Do not edit — regenerated from the documents.</p>
   <section><h2>Traceability coverage</h2>{coverage}</section>
   {problems}
   <section><h2>Open risks ({len(model['risks'])})</h2><ul>{risks}</ul></section>
@@ -293,5 +370,77 @@ def render_html(model) -> str:
     <table><thead><tr><th>Kind</th><th>ID</th><th>Status</th><th>Audit</th></tr></thead>
     <tbody>{rows}</tbody></table></section>
   <footer>Generated by <code>docunit status</code> from the documents in this repository.</footer>
+</main></body></html>
+"""
+
+
+_RAG_COLOR = {"green": "var(--ok)", "amber": "var(--amber)", "red": "var(--bad)"}
+
+
+def _index_card(p, esc) -> str:
+    dot = _RAG_COLOR[p["rag"]]
+
+    def plural(n, word):
+        return f"{n} {word}" + ("s" if n != 1 else "")
+
+    stats = [plural(p["total"], "doc")]
+    if p["risks"]:
+        stats.append(plural(p["risks"], "open risk"))
+    if p["coverage_gaps"]:
+        stats.append(plural(p["coverage_gaps"], "coverage gap"))
+    if p["failing"]:
+        stats.append(plural(p["failing"], "failing doc"))
+    if p["broken"]:
+        stats.append(plural(p["broken"], "broken ref"))
+
+    return (f'<a class="card" href="{esc(p["id"])}.html">'
+            f'<div class="card-h"><span class="dot" style="background:{dot}"></span>'
+            f'<span class="rag-t" style="color:{dot}">{esc(p["rag"].upper())}</span>'
+            f'<span class="code">{esc(p["code"])}</span></div>'
+            f'<div class="name">{esc(p["name"])}</div>'
+            f'<div class="pid">{esc(p["id"])} · {esc(p["lifecycle"])}</div>'
+            f'<div class="sponsor">Sponsor: {esc(p["sponsor"])}</div>'
+            f'<div class="stats">{" · ".join(esc(s) for s in stats)}</div></a>')
+
+
+def render_index_markdown(index) -> str:
+    """A portfolio table: one row per project with its derived RAG."""
+    overall = index["overall"]["rag"]
+    out = [f"# Projects — {_EMOJI[overall]} {overall.upper()}", "",
+           "| Project | Code | RAG | Docs | Open risks | Coverage gaps | Sponsor |",
+           "|---|---|---|---|---|---|---|"]
+    for p in index["projects"]:
+        out.append(
+            f"| {p['name']} | `{p['code']}` | {_EMOJI[p['rag']]} {p['rag'].upper()} "
+            f"| {p['total']} | {p['risks']} | {p['coverage_gaps']} | {p['sponsor']} |")
+    return "\n".join(out) + "\n"
+
+
+def render_index_html(index) -> str:
+    """The multi-project landing page: one linked RAG card per project."""
+    import datetime
+    import html as _h
+    esc = lambda s: _h.escape(str(s))
+
+    overall = index["overall"]["rag"]
+    ocolor = _RAG_COLOR[overall]
+    gen = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    cards = "".join(_index_card(p, esc) for p in index["projects"])
+    n = len(index["projects"])
+
+    return f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PMO as Code — Projects</title>
+<style>{_HTML_CSS}{_INDEX_CSS}</style></head>
+<body><main>
+  <header>
+    <span class="rag" style="background:{ocolor}">{overall.upper()}</span>
+    <h1>Projects</h1>
+  </header>
+  <p class="meta">{n} project(s) · derived portfolio health · generated {gen}.
+    Each card's RAG is computed from that project's own documents.</p>
+  <section class="grid">{cards}</section>
+  <footer>Generated by <code>docunit pages</code> from the documents in this repository.</footer>
 </main></body></html>
 """

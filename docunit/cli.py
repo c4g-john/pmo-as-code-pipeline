@@ -129,9 +129,15 @@ def cmd_consistency(args: argparse.Namespace) -> int:
     return sum(1 for r in results if r.is_blocking_failure)
 
 
+def _project_code(value: str | None) -> str | None:
+    """Accept either a PRJ-NNN-CODE id or a bare CODE; return the CODE."""
+    return value.split("-")[-1] if value else None
+
+
 def cmd_rtm(args: argparse.Namespace) -> int:
     graph = build_graph(DOCUMENTS_DIR)
-    text = rtm.render_csv(graph) if args.csv else rtm.render_markdown(graph)
+    code = _project_code(args.project)
+    text = rtm.render_csv(graph, code) if args.csv else rtm.render_markdown(graph, code)
     if args.out:
         Path(args.out).write_text(text)
         print(f"docunit: wrote {args.out}")
@@ -168,18 +174,52 @@ def cmd_projects(args: argparse.Namespace) -> int:
 
 def cmd_status(args: argparse.Namespace) -> int:
     from . import status as status_mod
-    model = status_mod.build_status(DOCUMENTS_DIR)
-    if args.format == "json":
-        text = status_mod.render_json(model)
-    elif args.format == "html":
-        text = status_mod.render_html(model)
+    if args.index:
+        index = status_mod.build_index(DOCUMENTS_DIR)
+        if args.format == "json":
+            text = status_mod.render_json(index)
+        elif args.format == "html":
+            text = status_mod.render_index_html(index)
+        else:
+            text = status_mod.render_index_markdown(index)
+        tag = index["overall"]["rag"]
     else:
-        text = status_mod.render_markdown(model, summary=args.summary)
+        model = status_mod.build_status(DOCUMENTS_DIR, project=args.project)
+        if args.project and not model["documents"]:
+            print(f"docunit: no documents for project {args.project!r}", file=sys.stderr)
+            return 2
+        if args.format == "json":
+            text = status_mod.render_json(model)
+        elif args.format == "html":
+            text = status_mod.render_html(model)
+        else:
+            text = status_mod.render_markdown(model, summary=args.summary)
+        tag = model["rag"]
     if args.out:
         Path(args.out).write_text(text)
-        print(f"docunit: wrote {args.out} (status: {model['rag']})")
+        print(f"docunit: wrote {args.out} (status: {tag})")
     else:
         sys.stdout.write(text)
+    return 0
+
+
+def cmd_pages(args: argparse.Namespace) -> int:
+    """Build the whole Pages site: a portfolio index plus one page per project."""
+    from . import status as status_mod, projects as projects_mod
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+
+    index = status_mod.build_index(DOCUMENTS_DIR)
+    (out / "index.html").write_text(status_mod.render_index_html(index))
+
+    plist = projects_mod.load_projects(DOCUMENTS_DIR)
+    for p in plist:
+        model = status_mod.build_status(DOCUMENTS_DIR, project=p["id"])
+        (out / f"{p['id']}.html").write_text(status_mod.render_html(model))
+
+    (out / "RTM.md").write_text(rtm.render_markdown(build_graph(DOCUMENTS_DIR)))
+    print(f"docunit: wrote {out}/ — index + {len(plist)} project page(s) + RTM.md "
+          f"(portfolio: {index['overall']['rag']})")
     return 0
 
 
@@ -204,6 +244,7 @@ def main(argv: list[str] | None = None) -> int:
     r = sub.add_parser("rtm", help="Generate the requirements traceability matrix.")
     r.add_argument("--out", help="Write to this path instead of stdout.")
     r.add_argument("--csv", action="store_true", help="Emit CSV instead of Markdown.")
+    r.add_argument("--project", help="Scope to one project (PRJ-NNN-CODE id or CODE).")
     r.set_defaults(func=cmd_rtm)
 
     s = sub.add_parser("status", help="Derive a project status page from the documents.")
@@ -211,8 +252,15 @@ def main(argv: list[str] | None = None) -> int:
                    help="Output format (default: md).")
     s.add_argument("--summary", action="store_true",
                    help="Condensed markdown (RAG + signals, no inventory table).")
+    s.add_argument("--project", help="Scope the status to one project (its PRJ-NNN-CODE id).")
+    s.add_argument("--index", action="store_true",
+                   help="Render the multi-project portfolio index instead of one status.")
     s.add_argument("--out", help="Write to this path instead of stdout.")
     s.set_defaults(func=cmd_status)
+
+    pg = sub.add_parser("pages", help="Build the full Pages site (portfolio index + a page per project).")
+    pg.add_argument("--out", default="_site", help="Output directory (default: _site).")
+    pg.set_defaults(func=cmd_pages)
 
     p = sub.add_parser("projects", help="Generate the project registry from the project.md anchors.")
     p.add_argument("--out", help="Write to this path instead of stdout (e.g. projects.yaml).")
