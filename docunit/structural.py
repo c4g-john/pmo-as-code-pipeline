@@ -302,6 +302,45 @@ def check_numbered_steps(doc: Document, ctx: dict) -> tuple[bool, str]:
     return True, f"Step sections have {total} numbered step(s)."
 
 
+def check_measurable_items(doc: Document, ctx: dict) -> tuple[bool, str]:
+    """Every bullet in each section named in `measurable_sections` states a
+    measurable threshold."""
+    specs = ctx.get("measurable_sections") or []
+    if not specs:
+        return True, "No measurable sections for this kind."
+    problems, total = [], 0
+    for name in specs:
+        section = doc.section(name)
+        if section is None:
+            continue
+        items = section.list_items
+        if not items:
+            problems.append(f'"{name}" has no bulleted items')
+            continue
+        total += len(items)
+        bad = [it for it in items if not _is_measurable(it)]
+        if bad:
+            problems.append(f'{len(bad)}/{len(items)} in "{name}" lack a measurable '
+                            f'threshold: ' + "; ".join(f'“{b[:40]}”' for b in bad))
+    if problems:
+        return False, "; ".join(problems)
+    return True, f"All {total} item(s) in measurable sections state a threshold."
+
+
+_RISK_REF_RE = re.compile(r"\bRISK-\d+\b")
+
+
+def check_references_risk(doc: Document, ctx: dict) -> tuple[bool, str]:
+    """The 'Risks & Issues' section cites at least one RISK-### from the register."""
+    section = doc.section("Risks & Issues")
+    if section is None:
+        return False, "No Risks & Issues section."
+    refs = _RISK_REF_RE.findall(section.body)
+    if not refs:
+        return False, "Risks & Issues cites no RISK-### from the register."
+    return True, f"Cites {len(set(refs))} risk(s) from the register: {', '.join(sorted(set(refs)))}."
+
+
 CHECKS: dict[str, Callable[[Document, dict], tuple[bool, str]]] = {
     "frontmatter-schema": check_frontmatter_schema,
     "required-sections": check_required_sections,
@@ -317,6 +356,8 @@ CHECKS: dict[str, Callable[[Document, dict], tuple[bool, str]]] = {
     "measurable-exit-criteria": check_measurable_exit_criteria,
     "mapping-table": check_has_mapping_table,
     "numbered-steps": check_numbered_steps,
+    "measurable-items": check_measurable_items,
+    "references-risk": check_references_risk,
 }
 
 
