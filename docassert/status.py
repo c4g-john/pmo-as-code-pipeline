@@ -9,11 +9,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from . import profiles as profiles_mod
 from .consistency import load_config
 from .graph import build_graph
 from .loader import load, load_criteria
-from .structural import run_structural, _field_value
-from . import profiles as profiles_mod
+from .structural import _field_value, run_structural
 
 CRITERIA_DIR = Path("criteria")
 SCHEMA_DIR = Path("schema")
@@ -354,7 +354,8 @@ def render_html(model) -> str:
     c = model["counts"]
     color = {"green": "var(--ok)", "amber": "var(--amber)", "red": "var(--bad)"}[rag]
     bar_color = {"green": "var(--ok)", "amber": "var(--amber)", "red": "var(--bad)"}[rag]
-    esc = lambda s: _h.escape(str(s))
+    def esc(s):
+        return _h.escape(str(s))
 
     coverage = "".join(
         f'<div class="sig"><div class="sig-h"><span>{esc(cov["label"])}</span>'
@@ -511,7 +512,8 @@ def render_index_html(index) -> str:
     """The multi-project landing page: one linked RAG card per project."""
     import datetime
     import html as _h
-    esc = lambda s: _h.escape(str(s))
+    def esc(s):
+        return _h.escape(str(s))
 
     overall = index["overall"]["rag"]
     ocolor = _RAG_COLOR[overall]

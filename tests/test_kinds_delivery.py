@@ -2,9 +2,9 @@
 from docassert.loader import parse_sections
 from docassert.models import Document
 from docassert.structural import (
-    check_story_format,
-    check_measurable_exit_criteria,
     check_has_mapping_table,
+    check_measurable_exit_criteria,
+    check_story_format,
 )
 
 

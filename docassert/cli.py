@@ -20,8 +20,8 @@ from .consistency import run_consistency
 from .graph import build_graph
 from .loader import load, load_criteria
 from .models import CheckResult
-from .structural import run_structural
 from .semantic import run_semantic
+from .structural import run_structural
 
 # repo layout
 CRITERIA_DIR = Path("criteria")
@@ -205,7 +205,8 @@ def cmd_status(args: argparse.Namespace) -> int:
 
 def cmd_pages(args: argparse.Namespace) -> int:
     """Build the whole Pages site: a portfolio index plus one page per project."""
-    from . import status as status_mod, projects as projects_mod
+    from . import projects as projects_mod
+    from . import status as status_mod
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
 
@@ -224,8 +225,10 @@ def cmd_pages(args: argparse.Namespace) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    from . import __version__
     parser = argparse.ArgumentParser(prog="docassert",
                                      description="Unit testing for business documents.")
+    parser.add_argument("--version", action="version", version=f"docassert {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
 
     v = sub.add_parser("validate", help="Validate documents against their criteria.")

@@ -2,9 +2,9 @@
 from docassert.loader import parse_sections
 from docassert.models import Document
 from docassert.structural import (
-    check_risk_items_complete,
     check_adr_items_have_status,
     check_raci_one_accountable,
+    check_risk_items_complete,
 )
 
 

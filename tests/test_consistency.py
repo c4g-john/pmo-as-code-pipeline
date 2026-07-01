@@ -1,15 +1,17 @@
 """Tests for the cross-document consistency engine."""
 from pathlib import Path
 
-from docassert.models import Item
-from docassert.graph import Graph
-from docassert.consistency import (
-    load_config, run_consistency,
-    check_referential_integrity, check_coverage,
-    check_required_links, check_unique_item_ids,
-)
 from docassert import rtm
-from docassert.graph import build_graph
+from docassert.consistency import (
+    check_coverage,
+    check_referential_integrity,
+    check_required_links,
+    check_unique_item_ids,
+    load_config,
+    run_consistency,
+)
+from docassert.graph import Graph, build_graph
+from docassert.models import Item
 
 ROOT = Path(__file__).resolve().parent.parent
 CONFIG = load_config(ROOT / "consistency.yaml")

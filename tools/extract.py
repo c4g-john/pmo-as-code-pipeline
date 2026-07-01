@@ -28,7 +28,7 @@ def extract(path: str | Path) -> str:
         try:
             import docx  # python-docx
         except ImportError:
-            raise SystemExit("extract: install support with  pip install '.[convert]'")
+            raise SystemExit("extract: install support with  pip install '.[convert]'") from None
         document = docx.Document(str(p))
         blocks: list[str] = [para.text for para in document.paragraphs]
         # include table cell text, which charters often use for milestones/risks
@@ -43,7 +43,7 @@ def extract(path: str | Path) -> str:
         try:
             from pypdf import PdfReader
         except ImportError:
-            raise SystemExit("extract: install support with  pip install '.[convert]'")
+            raise SystemExit("extract: install support with  pip install '.[convert]'") from None
         reader = PdfReader(str(p))
         return "\n".join((page.extract_text() or "") for page in reader.pages)
 
