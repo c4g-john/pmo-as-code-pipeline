@@ -1,13 +1,35 @@
 """Load and parse a business document into frontmatter + sections."""
 from __future__ import annotations
 
-import io
+import re
 from pathlib import Path
 
 import frontmatter
 import yaml
 
-from .models import Document, Section
+from .models import Document, Item, Section
+
+# A traceable item bullet, e.g.
+#   **PR-014** (traces: BR-001, BR-003): The flow shall be self-serve.
+ITEM_RE = re.compile(
+    r"^\*\*(?P<id>(?P<prefix>[A-Z]{1,6})-\d+)\*\*"   # **PREFIX-123**
+    r"(?:\s*\((?P<links>[^)]*)\))?"                    # optional (relation: id, …)
+    r"\s*:\s*(?P<text>.+)$"                            # : text
+)
+
+
+def parse_link_clause(clause: str) -> dict[str, list[str]]:
+    """Parse `traces: BR-001, BR-002; verifies: FR-3` -> {relation: [ids]}."""
+    links: dict[str, list[str]] = {}
+    for group in (clause or "").split(";"):
+        if ":" not in group:
+            continue
+        rel, ids = group.split(":", 1)
+        rel = rel.strip().lower()
+        id_list = [i.strip() for i in ids.split(",") if i.strip()]
+        if rel and id_list:
+            links.setdefault(rel, []).extend(id_list)
+    return links
 
 
 def parse_sections(body: str) -> dict[str, Section]:
@@ -55,3 +77,38 @@ def load_criteria(path: str | Path) -> dict:
     """Load a criteria YAML file (e.g. criteria/charter.criteria.yaml)."""
     with open(path, encoding="utf-8") as fh:
         return yaml.safe_load(fh)
+
+
+def iter_item_lines(section: Section):
+    """Yield (raw_bullet, match_or_None) for each bullet in an item section."""
+    for raw in section.list_items:
+        yield raw, ITEM_RE.match(raw)
+
+
+def parse_items(doc: Document, item_sections: list[dict]) -> list[Item]:
+    """Extract traceable items from a document per its criteria item_sections.
+
+    Each entry in `item_sections` is {"section": <title>, "prefix": <PREFIX>}.
+    Bullets that don't parse are skipped here; the `items-well-formed`
+    structural check is what flags them.
+    """
+    status = str(doc.frontmatter.get("status", "draft"))
+    items: list[Item] = []
+    for spec in item_sections or []:
+        section = doc.section(spec["section"])
+        if section is None:
+            continue
+        for _raw, m in iter_item_lines(section):
+            if not m:
+                continue
+            items.append(Item(
+                id=m.group("id"),
+                prefix=m.group("prefix"),
+                text=m.group("text").strip(),
+                links=parse_link_clause(m.group("links") or ""),
+                doc_path=doc.path,
+                doc_kind=doc.kind or "",
+                doc_status=status,
+                section=spec["section"],
+            ))
+    return items

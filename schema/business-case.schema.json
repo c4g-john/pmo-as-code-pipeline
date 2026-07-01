@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Business Case frontmatter",
+  "type": "object",
+  "required": ["kind", "id", "title", "sponsor", "status"],
+  "additionalProperties": true,
+  "properties": {
+    "kind": { "const": "business-case" },
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "title": { "type": "string", "minLength": 3 },
+    "sponsor": { "type": "string", "minLength": 2 },
+    "status": { "enum": ["draft", "proposed", "approved", "baselined"] }
+  }
+}

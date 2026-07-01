@@ -6,7 +6,47 @@ Word and PDF: unversioned, unvalidated, and impossible to audit at scale.
 every pull request it is **unit tested** against a configurable audit standard,
 and it can't merge until it passes.
 
+Beyond validating a single document, `docunit` also checks **consistency across
+documents** — that requirements trace end to end (BRD → PRD → F/NFR →
+acceptance criteria → test cases) — and generates the traceability matrix from
+those links.
+
 This is the working core of **PMO as Code**.
+
+## Document kinds
+
+Each kind is defined by a trio: `templates/<kind>.template.md`,
+`schema/<kind>.schema.json`, and `criteria/<kind>.criteria.yaml`. Supported
+today: `charter`, `business-case`, `brd`, `prd`, `frnfr` (functional &
+non-functional requirements), `test-cases`. Adding a kind is adding a trio — no
+code change for the common cases.
+
+## Traceability & consistency
+
+Requirements and other traceable rows are authored as **items** with stable IDs
+and typed links:
+
+```
+- **BR-001**: The business shall reduce onboarding time to under 2 days.
+- **PR-014** (traces: BR-001): The product shall provide a self-serve flow.
+- **AC-001** (verifies: PR-014): Given a new customer…, then an active account exists.
+- **TC-001** (tests: AC-001): Steps… Expected…
+```
+
+`docunit consistency` builds the graph across every document and checks it:
+
+- **Structural (blocking):** every link resolves (broken references always
+  block), item IDs are unique, and — once a document is `status: approved` —
+  every item has its required upstream link and every parent is covered
+  downstream. Work-in-progress (`draft`) is never blocked for incompleteness.
+- **Semantic (advisory):** the AI judges whether each child genuinely fulfils
+  the parent it links to (does PR-014 actually implement BR-001?).
+
+`docunit rtm` renders the Requirements Traceability Matrix (Markdown or CSV)
+from the same graph — traceability you can see, derived rather than authored.
+
+The rules (required links, coverage, alignment prompts) live in
+`consistency.yaml`, so an org tunes them without touching code.
 
 ## How it works
 
