@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from docassert.loader import load, load_criteria, parse_sections
-from docassert.structural import _is_measurable, _field_value, run_structural, CHECKS
+from docassert.structural import CHECKS, _field_value, _is_measurable, run_structural
 
 ROOT = Path(__file__).resolve().parent.parent
 AURORA = ROOT / "documents" / "PRJ-001-AUR" / "charter.md"

@@ -178,8 +178,9 @@ docassert validate 'documents/**/*.md'
 # validate a deliberately weak one (3 blocking failures, exit code 3)
 docassert validate tests/fixtures/weak-example.md
 
-# run the checker's own unit tests
+# run the checker's own unit tests, and lint
 pytest
+ruff check .
 ```
 
 To enable AI advisory scoring, set `ANTHROPIC_API_KEY` in your environment (and,
@@ -213,3 +214,7 @@ Add `templates/<kind>.template.md`, `schema/<kind>.schema.json`, and
 `criteria/<kind>.criteria.yaml`. Structural checks are keyed by id in
 `docassert/structural.py`; reuse the existing ones or add new functions to the
 `CHECKS` registry.
+
+## License
+
+Apache-2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE). © 2026 C4G Enterprises Inc.

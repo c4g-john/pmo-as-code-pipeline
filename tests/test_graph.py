@@ -1,8 +1,8 @@
 """Tests for item parsing and the cross-document graph."""
 from pathlib import Path
 
-from docassert.loader import ITEM_RE, parse_link_clause
 from docassert.graph import build_graph
+from docassert.loader import ITEM_RE, parse_link_clause
 
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "documents"

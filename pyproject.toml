@@ -1,9 +1,25 @@
 [project]
 name = "docassert"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Unit testing for business documents — validate structured Markdown docs against a configurable audit standard."
 readme = "README.md"
 requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "C4G Enterprises Inc." }]
+keywords = ["pmo", "documentation", "validation", "governance", "markdown", "audit", "traceability", "ci"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Documentation",
+    "Topic :: Text Processing :: Markup :: Markdown",
+]
 dependencies = [
     "python-frontmatter>=1.1",
     "PyYAML>=6.0",
@@ -13,7 +29,12 @@ dependencies = [
 [project.optional-dependencies]
 ai = ["anthropic>=0.40"]
 convert = ["python-docx>=1.1", "pypdf>=4.0"]   # source extraction for doc-to-pmo
-dev = ["pytest>=8.0"]
+dev = ["pytest>=8.0", "ruff>=0.6"]
+
+[project.urls]
+Homepage = "https://docassert.com"
+Repository = "https://github.com/c4g-john/pmo-as-code-pipeline"
+Issues = "https://github.com/c4g-john/pmo-as-code-pipeline/issues"
 
 [project.scripts]
 docassert = "docassert.cli:main"
@@ -25,8 +46,20 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools]
 packages = ["docassert"]
 
+[tool.setuptools.dynamic]
+version = { attr = "docassert.__version__" }
+
 [tool.pytest.ini_options]
 # Import docassert from the repo root without relying on an editable install
 # (avoids editable-install quirks on newer Python versions).
 pythonpath = ["."]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "B", "UP"]
+# Long lines are common in the descriptive check messages and sample content.
+ignore = ["E501"]

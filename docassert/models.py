@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 
 @dataclass
@@ -50,14 +49,14 @@ class Document:
     raw_body: str = ""
 
     @property
-    def id(self) -> Optional[str]:
+    def id(self) -> str | None:
         return self.frontmatter.get("id")
 
     @property
-    def kind(self) -> Optional[str]:
+    def kind(self) -> str | None:
         return self.frontmatter.get("kind")
 
-    def section(self, title: str) -> Optional[Section]:
+    def section(self, title: str) -> Section | None:
         return self.sections.get(title)
 
 
@@ -69,7 +68,7 @@ class CheckResult:
     blocking: bool
     detail: str
     kind: str = "structural"           # structural | semantic
-    score: Optional[float] = None      # semantic checks only, 0..1
+    score: float | None = None      # semantic checks only, 0..1
 
     @property
     def is_blocking_failure(self) -> bool:

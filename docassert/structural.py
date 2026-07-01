@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import datetime as dt
 import re
-from typing import Callable
+from collections.abc import Callable
 
 from jsonschema import Draft7Validator, FormatChecker
 
