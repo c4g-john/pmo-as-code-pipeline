@@ -1,0 +1,57 @@
+name: docunit audit
+
+# Runs on every PR so it can be a required status check. It validates only the
+# documents that changed; if none changed, it passes trivially.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write   # to post the audit result as a PR comment
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # need base..head to diff changed documents
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install docunit
+        run: pip install -e ".[ai]"
+
+      - name: Determine changed documents
+        id: changed
+        run: |
+          base="${{ github.event.pull_request.base.sha }}"
+          files="$(git diff --name-only "$base" HEAD -- 'documents/**/*.md' | tr '\n' ' ')"
+          echo "files=$files" >> "$GITHUB_OUTPUT"
+          echo "Changed documents: ${files:-<none>}"
+
+      - name: Run docunit
+        id: audit
+        if: steps.changed.outputs.files != ''
+        env:
+          # Set this repo secret to enable AI advisory scoring. Without it, the
+          # semantic checks are skipped and structural checks still gate.
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          docunit validate ${{ steps.changed.outputs.files }} \
+            --markdown comment.md --junit report.xml
+
+      - name: Post audit result to the PR
+        if: always() && steps.changed.outputs.files != '' && hashFiles('comment.md') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr comment "${{ github.event.pull_request.number }}" --body-file comment.md
+
+      - name: Upload JUnit report
+        if: always() && steps.changed.outputs.files != '' && hashFiles('report.xml') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: docunit-report
+          path: report.xml

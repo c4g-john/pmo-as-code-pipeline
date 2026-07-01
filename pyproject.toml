@@ -1,0 +1,25 @@
+[project]
+name = "docunit"
+version = "0.1.0"
+description = "Unit testing for business documents — validate structured Markdown docs against a configurable audit standard."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "python-frontmatter>=1.1",
+    "PyYAML>=6.0",
+    "jsonschema>=4.0",
+]
+
+[project.optional-dependencies]
+ai = ["anthropic>=0.40"]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+docunit = "docunit.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["docunit"]
