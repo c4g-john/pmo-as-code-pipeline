@@ -27,9 +27,9 @@ def test_measurable_items_no_specs_passes():
 
 # ── references a risk ───────────────────────────────────────────────────────
 def test_references_risk_passes():
-    d = doc_from("## Risks & Issues\n- RISK-001 is now the top risk this period.")
+    d = doc_from("## Risks & Issues\n- AUR-RISK-001 is now the top risk this period.")
     ok, detail = check_references_risk(d, {})
-    assert ok and "RISK-001" in detail
+    assert ok and "AUR-RISK-001" in detail
 
 
 def test_references_risk_fails_without_ids():

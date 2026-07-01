@@ -16,12 +16,14 @@ class Graph:
 
     def __init__(self) -> None:
         self.occurrences: dict[str, list[Item]] = defaultdict(list)   # id -> items
-        self.by_prefix: dict[str, list[Item]] = defaultdict(list)
+        self.by_type: dict[str, list[Item]] = defaultdict(list)       # BR/PR/… -> items
+        self.by_project: dict[str, list[Item]] = defaultdict(list)    # AUR/ATL/… -> items
         self.incoming: dict[str, list[tuple[str, Item]]] = defaultdict(list)  # target -> (relation, source)
 
     def add(self, item: Item) -> None:
         self.occurrences[item.id].append(item)
-        self.by_prefix[item.prefix].append(item)
+        self.by_type[item.type].append(item)
+        self.by_project[item.project].append(item)
         for relation, targets in item.links.items():
             for target in targets:
                 self.incoming[target].append((relation, item))
@@ -42,10 +44,10 @@ class Graph:
         return [occ[0] for occ in self.occurrences.values()]
 
     def children(self, target_id: str, relation: str,
-                 by_prefix: str | None = None) -> list[Item]:
-        """Items that link to `target_id` via `relation` (optionally filtered)."""
+                 by_type: str | None = None) -> list[Item]:
+        """Items that link to `target_id` via `relation` (optionally by item type)."""
         return [src for rel, src in self.incoming.get(target_id, [])
-                if rel == relation and (by_prefix is None or src.prefix == by_prefix)]
+                if rel == relation and (by_type is None or src.type == by_type)]
 
 
 def _item_sections_for(kind: str) -> list[dict]:

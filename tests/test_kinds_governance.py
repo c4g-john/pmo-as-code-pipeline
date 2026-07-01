@@ -19,13 +19,13 @@ ADR_CTX = {"item_sections": [{"section": "Decisions", "prefix": "ADR"}]}
 
 # ── risk items ──────────────────────────────────────────────────────────────
 def test_risk_complete_passes():
-    d = doc_from("## Risks\n- **RISK-001** (threatens: BR-001): migration may slip. "
+    d = doc_from("## Risks\n- **AUR-RISK-001** (threatens: AUR-BR-001): migration may slip. "
                  "Probability: High. Impact: High. Owner: alex.kim. Response: dual-run.")
     assert check_risk_items_complete(d, RISK_CTX)[0]
 
 
 def test_risk_missing_fields_fails():
-    d = doc_from("## Risks\n- **RISK-002** (threatens: BR-001): vendor late. "
+    d = doc_from("## Risks\n- **AUR-RISK-002** (threatens: AUR-BR-001): vendor late. "
                  "Probability: High. Owner: alex.kim.")   # no Impact, no Response
     ok, detail = check_risk_items_complete(d, RISK_CTX)
     assert not ok and "Impact" in detail and "Response" in detail
@@ -33,13 +33,13 @@ def test_risk_missing_fields_fails():
 
 # ── adr status ──────────────────────────────────────────────────────────────
 def test_adr_valid_status_passes():
-    d = doc_from("## Decisions\n- **ADR-001** (affects: FR-1): use SSR. Status: accepted. "
+    d = doc_from("## Decisions\n- **AUR-ADR-001** (affects: AUR-FR-1): use SSR. Status: accepted. "
                  "Context: c. Decision: d. Consequences: e.")
     assert check_adr_items_have_status(d, ADR_CTX)[0]
 
 
 def test_adr_invalid_status_fails():
-    d = doc_from("## Decisions\n- **ADR-002**: pick a db. Status: maybe.")
+    d = doc_from("## Decisions\n- **AUR-ADR-002**: pick a db. Status: maybe.")
     assert not check_adr_items_have_status(d, ADR_CTX)[0]
 
 

@@ -64,7 +64,7 @@ def check_required_links(graph, config) -> CheckResult:
     required = config.get("required_links", {})
     approved_orphans, draft_orphans = [], []
     for item in graph.all_items():
-        relation = required.get(item.prefix)
+        relation = required.get(item.type)
         if relation and not item.targets(relation):
             bucket = approved_orphans if _approved(item) else draft_orphans
             bucket.append(f"{item.id} (missing '{relation}')")
@@ -83,7 +83,7 @@ def check_coverage(graph, config) -> CheckResult:
         parent_prefix, relation = rule["parent"], rule["relation"]
         by_prefix = rule.get("by_prefix")
         label = rule.get("label", f"{parent_prefix} → {by_prefix}")
-        for parent in graph.by_prefix.get(parent_prefix, []):
+        for parent in graph.by_type.get(parent_prefix, []):
             if graph.children(parent.id, relation, by_prefix):
                 continue
             bucket = approved_gaps if _approved(parent) else draft_gaps

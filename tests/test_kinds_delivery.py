@@ -18,16 +18,16 @@ US_CTX = {"item_sections": [{"section": "User Stories", "prefix": "US"}]}
 
 # ── user story format ───────────────────────────────────────────────────────
 def test_story_format_passes():
-    d = doc_from("## User Stories\n- **US-001** (traces: PR-014): As a new customer, "
+    d = doc_from("## User Stories\n- **AUR-US-001** (traces: AUR-PR-014): As a new customer, "
                  "I want to self-serve, so that I start on day one.")
     assert check_story_format(d, US_CTX)[0]
 
 
 def test_story_format_fails():
-    d = doc_from("## User Stories\n- **US-002** (traces: PR-014): Self-serve onboarding "
+    d = doc_from("## User Stories\n- **AUR-US-002** (traces: AUR-PR-014): Self-serve onboarding "
                  "would be nice to have.")   # no 'As a … I want'
     ok, detail = check_story_format(d, US_CTX)
-    assert not ok and "US-002" in detail
+    assert not ok and "AUR-US-002" in detail
 
 
 # ── measurable exit criteria ────────────────────────────────────────────────

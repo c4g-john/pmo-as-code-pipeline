@@ -19,6 +19,7 @@ Each kind is defined by a trio: `templates/<kind>.template.md`,
 `schema/<kind>.schema.json`, and `criteria/<kind>.criteria.yaml`. Adding a kind
 is adding a trio — no code change for the common cases. Supported today:
 
+- **Project anchor:** `project` (one `project.md` per project folder)
 - **Discovery:** `charter`, `business-case`
 - **Requirements:** `brd`, `prd`, `frnfr`, `user-story`, `test-cases`
 - **Design & governance:** `adr`, `risk-register`, `raci-stakeholder`
@@ -28,16 +29,34 @@ is adding a trio — no code change for the common cases. Supported today:
 - **Report & close:** `status-report`, `post-implementation-review`,
   `benefits-realization`
 
+## Projects & identity
+
+Every document belongs to a project with a unique, self-identifying id:
+
+- **Project id `PRJ-NNN-CODE`** (e.g. `PRJ-001-AUR`) — a unique sequence *and* a
+  short mnemonic `CODE`. Each project is anchored by a `project.md` (kind
+  `project`) at the root of its folder.
+- **Project-first folders:** `documents/PRJ-001-AUR/charter.md`,
+  `documents/PRJ-001-AUR/brd.md`, … — one folder per project, not per kind.
+- **Namespaced ids:** document ids are `<CODE>-<slug>` (`AUR-brd`) and item ids
+  are `<CODE>-<TYPE>-<NNN>` (`AUR-BR-001`). The code prefix makes every id
+  globally unique and self-identifying, so `AUR-BR-001` and `ATL-BR-001` are
+  distinct requirements in different projects.
+
+`docunit projects --out projects.yaml` regenerates the registry from the
+`project.md` anchors; `docunit projects --check` fails CI if it drifts from the
+anchors or if any project id/code is duplicated.
+
 ## Traceability & consistency
 
 Requirements and other traceable rows are authored as **items** with stable IDs
 and typed links:
 
 ```
-- **BR-001**: The business shall reduce onboarding time to under 2 days.
-- **PR-014** (traces: BR-001): The product shall provide a self-serve flow.
-- **AC-001** (verifies: PR-014): Given a new customer…, then an active account exists.
-- **TC-001** (tests: AC-001): Steps… Expected…
+- **AUR-BR-001**: The business shall reduce onboarding time to under 2 days.
+- **AUR-PR-014** (traces: AUR-BR-001): The product shall provide a self-serve flow.
+- **AUR-AC-001** (verifies: AUR-PR-014): Given a new customer…, then an active account exists.
+- **AUR-TC-001** (tests: AUR-AC-001): Steps… Expected…
 ```
 
 `docunit consistency` builds the graph across every document and checks it:
@@ -47,7 +66,7 @@ and typed links:
   every item has its required upstream link and every parent is covered
   downstream. Work-in-progress (`draft`) is never blocked for incompleteness.
 - **Semantic (advisory):** the AI judges whether each child genuinely fulfils
-  the parent it links to (does PR-014 actually implement BR-001?).
+  the parent it links to (does AUR-PR-014 actually implement AUR-BR-001?).
 
 `docunit rtm` renders the Requirements Traceability Matrix (Markdown or CSV)
 from the same graph — traceability you can see, derived rather than authored.
@@ -81,7 +100,7 @@ Three ways it stays live:
 ## How it works
 
 ```
- Word / PDF ──▶ doc-to-pmo skill ──▶ documents/charters/aurora.md
+ Word / PDF ──▶ doc-to-pmo skill ──▶ documents/PRJ-001-AUR/charter.md
                                             │
                                      open a Pull Request
                                             │
@@ -113,7 +132,10 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"                 # add ".[ai]" for semantic scoring
 
 # validate the sample charter (passes)
-docunit validate documents/charters/aurora.md
+docunit validate documents/PRJ-001-AUR/charter.md
+
+# validate every document across all projects
+docunit validate 'documents/**/*.md'
 
 # validate a deliberately weak one (3 blocking failures, exit code 3)
 docunit validate tests/fixtures/weak-example.md
@@ -130,12 +152,14 @@ the structural gate still works.
 
 | Path | Purpose |
 |---|---|
-| `documents/` | The source of truth — normalized Markdown business documents. |
-| `templates/charter.template.md` | The canonical charter shape (fill this in). |
-| `schema/charter.schema.json` | JSON Schema for charter frontmatter. |
-| `criteria/charter.criteria.yaml` | The configurable audit standard — edit this to tune what "passing" means. |
-| `docunit/` | The validator (loader, structural checks, semantic checks, reports, CLI). |
-| `.github/workflows/audit.yml` | Runs the audit on every PR and gates the merge. |
+| `documents/PRJ-NNN-CODE/` | One folder per project — the source of truth. Each holds a `project.md` anchor plus its Markdown business documents. |
+| `projects.yaml` | Generated registry of all projects (`docunit projects`). Kept fresh by CI. |
+| `templates/<kind>.template.md` | The canonical shape for each kind (fill these in). |
+| `schema/<kind>.schema.json` | JSON Schema for each kind's frontmatter. |
+| `criteria/<kind>.criteria.yaml` | The configurable audit standard — edit to tune what "passing" means. |
+| `consistency.yaml` | Cross-document traceability rules (required links, coverage, alignment). |
+| `docunit/` | The validator (loader, structural checks, semantic checks, graph, reports, CLI). |
+| `.github/workflows/audit.yml` | Runs the audit + consistency on every PR and gates the merge. |
 | `.claude/skills/doc-to-pmo/` | The Claude skill that converts Word/PDF into a template document. |
 
 ## Adding the merge gate

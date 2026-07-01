@@ -81,12 +81,16 @@ class Item:
     """A traceable item inside a document (a requirement, criterion, test, …).
 
     Authored as a bullet like:
-        - **PR-014** (traces: BR-001, BR-003): The onboarding flow shall be self-serve.
+        - **AUR-PR-014** (traces: AUR-BR-001): The onboarding flow shall be self-serve.
+
+    The id is <CODE>-<TYPE>-<NNN>: `project` is the project code (AUR), `type` is
+    the item type (PR). Ids are globally unique and self-identify their project.
     """
-    id: str                              # e.g. "PR-014"
-    prefix: str                          # e.g. "PR"
+    id: str                              # e.g. "AUR-PR-014"
+    project: str                         # project code, e.g. "AUR"
+    type: str                            # item type, e.g. "PR"
     text: str
-    links: dict[str, list[str]]          # relation -> [target ids], e.g. {"traces": ["BR-001"]}
+    links: dict[str, list[str]]          # relation -> [target ids], e.g. {"traces": ["AUR-BR-001"]}
     doc_path: str
     doc_kind: str
     doc_status: str

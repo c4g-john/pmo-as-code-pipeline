@@ -68,6 +68,11 @@ jobs:
       - name: Install docunit
         run: pip install -e ".[ai]"
 
+      - name: Check the project registry is current
+        # Blocking: fails if projects.yaml has drifted from the project.md anchors
+        # or if any project id/code is duplicated across projects.
+        run: docunit projects --check --out projects.yaml
+
       - name: Check consistency
         id: consistency
         env:

@@ -51,7 +51,7 @@ def _coverage(graph, config):
     for rule in config.get("coverage", []):
         parent_prefix, relation = rule["parent"], rule["relation"]
         by_prefix = rule.get("by_prefix")
-        parents = graph.by_prefix.get(parent_prefix, [])
+        parents = graph.by_type.get(parent_prefix, [])
         covered = [p for p in parents if graph.children(p.id, relation, by_prefix)]
         out.append({
             "label": rule.get("label", f"{parent_prefix} → {by_prefix}"),
@@ -64,7 +64,7 @@ def _coverage(graph, config):
 
 def _risks(graph):
     risks = []
-    for item in graph.by_prefix.get("RISK", []):
+    for item in graph.by_type.get("RISK", []):
         prob = (_field_value(item.text, "probability") or "").lower()
         impact = (_field_value(item.text, "impact") or "").lower()
         risks.append({
