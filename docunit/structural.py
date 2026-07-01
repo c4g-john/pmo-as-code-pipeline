@@ -279,6 +279,29 @@ def check_has_mapping_table(doc: Document, ctx: dict) -> tuple[bool, str]:
     return True, f"Field Mapping table has {len(data)} row(s)."
 
 
+_STEP_RE = re.compile(r"^\s*\d+\.\s")
+
+
+def check_numbered_steps(doc: Document, ctx: dict) -> tuple[bool, str]:
+    """Each section named in `steps_sections` has an ordered (numbered) list of
+    at least two steps."""
+    specs = ctx.get("steps_sections") or []
+    if not specs:
+        return True, "No step sections for this kind."
+    problems, total = [], 0
+    for name in specs:
+        section = doc.section(name)
+        if section is None:
+            continue
+        n = sum(1 for ln in section.body.splitlines() if _STEP_RE.match(ln))
+        total += n
+        if n < 2:
+            problems.append(f'"{name}" needs at least 2 numbered steps (found {n})')
+    if problems:
+        return False, "; ".join(problems)
+    return True, f"Step sections have {total} numbered step(s)."
+
+
 CHECKS: dict[str, Callable[[Document, dict], tuple[bool, str]]] = {
     "frontmatter-schema": check_frontmatter_schema,
     "required-sections": check_required_sections,
@@ -293,6 +316,7 @@ CHECKS: dict[str, Callable[[Document, dict], tuple[bool, str]]] = {
     "story-format": check_story_format,
     "measurable-exit-criteria": check_measurable_exit_criteria,
     "mapping-table": check_has_mapping_table,
+    "numbered-steps": check_numbered_steps,
 }
 
 
