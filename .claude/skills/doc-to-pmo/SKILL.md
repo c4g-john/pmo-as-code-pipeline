@@ -17,10 +17,16 @@ it.
    `templates/charter.template.md` for the required frontmatter and sections,
    and `criteria/charter.criteria.yaml` for what will be checked.
 
-2. **Extract the source text.**
-   - `.docx`: `python -c "import docx; print('\n'.join(p.text for p in docx.Document('FILE.docx').paragraphs))"` (install `python-docx`), or `pandoc FILE.docx -t markdown` if pandoc is available.
-   - `.pdf`: use the Read tool, or `pdftotext FILE.pdf -`.
-   - Pasted text or Google Docs: ask the user to paste, or export to `.docx`/`.pdf` first.
+2. **Extract the source text** with the bundled extractor (handles `.docx`,
+   `.pdf`, `.md`, `.txt`):
+
+   ```bash
+   pip install '.[convert]'                 # one-time: python-docx + pypdf
+   python tools/extract.py path/to/source.docx
+   ```
+
+   For pasted text or Google Docs, ask the user to paste the content or export
+   to `.docx`/`.pdf` first.
 
 3. **Map into the template.** Create `documents/charters/<id>.md` where `<id>`
    is a lowercase, hyphenated slug of the title.
