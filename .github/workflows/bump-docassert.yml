@@ -30,7 +30,7 @@ jobs:
         run: |
           latest=$(curl -fsS https://pypi.org/pypi/docassert/json | python3 -c "import sys,json;print(json.load(sys.stdin)['info']['version'])")
           echo "$latest" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$' || { echo "unexpected version '$latest'"; exit 1; }
-          current=$(grep -rhoE "version: '[0-9.]+'" .github/workflows/audit.yml | head -1 | grep -oE "[0-9.]+")
+          current=$(head -n1 .docassert-version | tr -d '[:space:]')
           echo "latest=$latest"   >> "$GITHUB_OUTPUT"
           echo "current=$current" >> "$GITHUB_OUTPUT"
           echo "docassert pinned=$current latest=$latest"
@@ -39,12 +39,13 @@ jobs:
         if: steps.v.outputs.latest == steps.v.outputs.current
         run: echo "already at ${{ steps.v.outputs.latest }}"
 
-      - name: Bump pins
+      - name: Bump the pin
         if: steps.v.outputs.latest != steps.v.outputs.current
+        env:
+          NEW: ${{ steps.v.outputs.latest }}
         run: |
-          old="${{ steps.v.outputs.current }}"; new="${{ steps.v.outputs.latest }}"
-          sed -i "s/version: '$old'/version: '$new'/g; s/docassert\[ai\]==$old/docassert[ai]==$new/g; s/docassert==$old/docassert==$new/g" \
-            .github/workflows/audit.yml .github/workflows/status-pages.yml 2>/dev/null || true
+          printf '%s
+' "$NEW" > .docassert-version
           git diff --stat
 
       - name: Verify this repo against the new version

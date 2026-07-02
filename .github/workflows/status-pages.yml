@@ -32,7 +32,7 @@ jobs:
         uses: c4g-john/docassert-action@v1
         with:
           command: pages
-          version: '0.7.0'
+          version-file: '.docassert-version'
           extras: ''
 
       - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5.0.0
