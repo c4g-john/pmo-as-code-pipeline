@@ -62,7 +62,7 @@ jobs:
           else
             echo "result=FAIL (validate=$v consistency=$c registry=$p)" >> "$GITHUB_OUTPUT"
           fi
-          tail -3 /tmp/v.txt /tmp/c.txt /tmp/p.txt
+          tail -n 3 /tmp/v.txt /tmp/c.txt /tmp/p.txt
 
       - name: Open the bump PR
         if: steps.v.outputs.latest != steps.v.outputs.current
