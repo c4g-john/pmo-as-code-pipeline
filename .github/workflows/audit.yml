@@ -20,7 +20,7 @@ jobs:
         with:
           command: validate
           changed-only: 'true'
-          version: '0.6.0'
+          version: '0.7.0'
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
 
   consistency:
@@ -30,7 +30,7 @@ jobs:
       - uses: c4g-john/docassert-action@v1
         with:
           command: consistency
-          version: '0.6.0'
+          version: '0.7.0'
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
 
   # Derived project status. Informational (not a required check): posts the
@@ -43,7 +43,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install docassert
-        run: pip install "docassert[ai]==0.6.0"
+        run: pip install "docassert[ai]==0.7.0"
 
       - name: Derive status
         run: docassert status --format md --summary --out status-comment.md
