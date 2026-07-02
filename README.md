@@ -1,5 +1,7 @@
 # pmo-as-code-pipeline
 
+[![pmo docs](https://img.shields.io/endpoint?url=https%3A%2F%2Fc4g-john.github.io%2Fpmo-as-code-pipeline%2Fbadge.json)](https://c4g-john.github.io/pmo-as-code-pipeline/)
+
 A **live reference deployment of [PMO as Code](https://c4g-john.github.io/pmo-as-code/)** —
 a real repository run entirely with [`docassert`](https://github.com/c4g-john/docassert),
 the tool that unit-tests business documents.
