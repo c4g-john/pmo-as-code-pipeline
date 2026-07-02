@@ -44,8 +44,7 @@ jobs:
         env:
           NEW: ${{ steps.v.outputs.latest }}
         run: |
-          printf '%s
-' "$NEW" > .docassert-version
+          echo "$NEW" > .docassert-version
           git diff --stat
 
       - name: Verify this repo against the new version
