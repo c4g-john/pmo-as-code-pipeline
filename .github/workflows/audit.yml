@@ -13,7 +13,7 @@ jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0   # changed-only diffs against the PR base
       - uses: c4g-john/docassert-action@v1
@@ -26,7 +26,7 @@ jobs:
   consistency:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: c4g-john/docassert-action@v1
         with:
           command: consistency
@@ -38,8 +38,8 @@ jobs:
   status:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
         with:
           python-version: "3.12"
       - name: Install docassert
@@ -52,7 +52,8 @@ jobs:
         if: always() && hashFiles('status-comment.md') != ''
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh pr comment "${{ github.event.pull_request.number }}" --body-file status-comment.md
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: gh pr comment "$PR_NUMBER" --body-file status-comment.md
 
       - name: Flag a stale STATUS.md
         run: |
@@ -60,3 +61,25 @@ jobs:
           if ! git diff --quiet -- STATUS.md; then
             echo "::warning::STATUS.md is out of date — run 'docassert status --format md --out STATUS.md' and commit it."
           fi
+
+  # R3: the committed doc-to-pmo skill must match the version shipped in the
+  # pinned docassert package, so it can't silently rot as the tool evolves.
+  skill-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        with:
+          python-version: "3.12"
+      - run: pip install "docassert==0.7.0"
+      - name: Skill is current with docassert
+        run: |
+          python - <<'PY'
+          import filecmp, sys
+          from importlib.resources import files
+          pkg = files("docassert") / "_data/skills/doc-to-pmo/SKILL.md"
+          local = ".claude/skills/doc-to-pmo/SKILL.md"
+          if not filecmp.cmp(str(pkg), local, shallow=False):
+              sys.exit("::error::.claude/skills/doc-to-pmo drifted from docassert; run `docassert init` to refresh it.")
+          print("skill matches the packaged version")
+          PY
