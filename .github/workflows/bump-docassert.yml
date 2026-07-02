@@ -1,0 +1,81 @@
+name: bump docassert
+
+# Daily: if PyPI has a newer docassert than this repo pins, verify this repo's
+# documents against it (validate + consistency + registry) and open a bump PR
+# with the results.
+#
+# Note: PRs opened with the Actions token don't auto-run the required checks
+# (GitHub limitation) — the verification below runs inside this workflow
+# instead, and an admin merge (or close/reopen to trigger checks) lands it.
+on:
+  schedule:
+    - cron: "23 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Detect versions
+        id: v
+        run: |
+          latest=$(curl -fsS https://pypi.org/pypi/docassert/json | python3 -c "import sys,json;print(json.load(sys.stdin)['info']['version'])")
+          current=$(grep -rhoE "version: '[0-9.]+'" .github/workflows/audit.yml | head -1 | grep -oE "[0-9.]+")
+          echo "latest=$latest"   >> "$GITHUB_OUTPUT"
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          echo "docassert pinned=$current latest=$latest"
+
+      - name: Nothing to do?
+        if: steps.v.outputs.latest == steps.v.outputs.current
+        run: echo "already at ${{ steps.v.outputs.latest }}"
+
+      - name: Bump pins
+        if: steps.v.outputs.latest != steps.v.outputs.current
+        run: |
+          old="${{ steps.v.outputs.current }}"; new="${{ steps.v.outputs.latest }}"
+          sed -i "s/version: '$old'/version: '$new'/g; s/docassert\[ai\]==$old/docassert[ai]==$new/g; s/docassert==$old/docassert==$new/g" \
+            .github/workflows/audit.yml .github/workflows/status-pages.yml 2>/dev/null || true
+          git diff --stat
+
+      - name: Verify this repo against the new version
+        if: steps.v.outputs.latest != steps.v.outputs.current
+        id: verify
+        run: |
+          pip install --quiet "docassert==${{ steps.v.outputs.latest }}"
+          set +e
+          docassert validate 'documents/**/*.md' > /tmp/v.txt 2>&1; v=$?
+          docassert consistency --no-semantic  > /tmp/c.txt 2>&1; c=$?
+          docassert projects --check --out projects.yaml > /tmp/p.txt 2>&1; p=$?
+          set -e
+          if [ $v -eq 0 ] && [ $c -eq 0 ] && [ $p -eq 0 ]; then
+            echo "result=PASS" >> "$GITHUB_OUTPUT"
+          else
+            echo "result=FAIL (validate=$v consistency=$c registry=$p)" >> "$GITHUB_OUTPUT"
+          fi
+          tail -3 /tmp/v.txt /tmp/c.txt /tmp/p.txt
+
+      - name: Open the bump PR
+        if: steps.v.outputs.latest != steps.v.outputs.current
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          new="${{ steps.v.outputs.latest }}"; old="${{ steps.v.outputs.current }}"
+          branch="bump-docassert-$new"
+          if gh pr list --head "$branch" --json number -q length | grep -qv '^0$'; then
+            echo "bump PR already open"; exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add -A && git commit -m "Bump docassert $old -> $new (auto)"
+          git push -u origin "$branch"
+          gh pr create --title "Bump docassert $old → $new" --body "$(printf 'Automated pin bump.\n\n**In-workflow verification against %s: %s**\n\n> Required checks do not auto-run on Actions-token PRs — verification ran in the [bump workflow](../actions/workflows/bump-docassert.yml) instead. Merge as admin, or close/reopen this PR to trigger the checks.' "$new" "${{ steps.verify.outputs.result }}")"
