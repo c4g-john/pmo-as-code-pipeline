@@ -26,15 +26,14 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - run: pip install docassert==0.4.0
-
       - name: Build the status site
         # One command builds the whole site: a portfolio index (one RAG card per
         # project) plus a discrete status page per project, plus the RTM.
-        run: docassert pages --out _site
+        uses: c4g-john/docassert-action@v1
+        with:
+          command: pages
+          version: '0.5.0'
+          extras: ''
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
