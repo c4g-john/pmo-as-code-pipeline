@@ -16,22 +16,52 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0   # changed-only diffs against the PR base
+      - name: Pass the advisory key only when documents changed
+        id: docs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          files=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --paginate -q '.[].filename')
+          changed=false
+          if echo "$files" | grep -Eq '^(documents/|consistency\.yaml)'; then
+            changed=true
+          fi
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
       - uses: c4g-john/docassert-action@v1
         with:
           command: validate
           changed-only: 'true'
           version-file: '.docassert-version'
-          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          anthropic-api-key: ${{ steps.docs.outputs.changed == 'true' && secrets.ANTHROPIC_API_KEY || '' }}
 
   consistency:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: .docassert-cache
+          key: docassert-advisory-${{ github.run_id }}
+          restore-keys: |
+            docassert-advisory-
+      - name: Pass the advisory key only when documents changed
+        id: docs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          files=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --paginate -q '.[].filename')
+          changed=false
+          if echo "$files" | grep -Eq '^(documents/|consistency\.yaml)'; then
+            changed=true
+          fi
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
       - uses: c4g-john/docassert-action@v1
         with:
           command: consistency
           version-file: '.docassert-version'
-          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          anthropic-api-key: ${{ steps.docs.outputs.changed == 'true' && secrets.ANTHROPIC_API_KEY || '' }}
 
   # Derived project status. Informational (not a required check): posts the
   # current derived RAG + signals to the PR, and warns on a stale STATUS.md.
