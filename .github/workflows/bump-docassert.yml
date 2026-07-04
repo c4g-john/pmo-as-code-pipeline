@@ -9,7 +9,7 @@ name: bump docassert
 # instead, and an admin merge (or close/reopen to trigger checks) lands it.
 on:
   schedule:
-    - cron: "23 6 * * *"
+    - cron: "23 */2 * * *"
   workflow_dispatch:
 
 permissions:
