@@ -67,7 +67,7 @@ jobs:
       - name: Open the bump PR
         if: steps.v.outputs.latest != steps.v.outputs.current
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.BUMP_TOKEN || github.token }}
         run: |
           new="${{ steps.v.outputs.latest }}"; old="${{ steps.v.outputs.current }}"
           branch="bump-docassert-$new"
@@ -80,3 +80,4 @@ jobs:
           git add -A && git commit -m "Bump docassert $old -> $new (auto)"
           git push -u origin "$branch"
           gh pr create --title "Bump docassert $old → $new" --body "$(printf 'Automated pin bump.\n\n**In-workflow verification against %s: %s**\n\n> Required checks do not auto-run on Actions-token PRs — verification ran in the [bump workflow](../actions/workflows/bump-docassert.yml) instead. Merge as admin, or close/reopen this PR to trigger the checks.' "$new" "${{ steps.verify.outputs.result }}")"
+          gh pr merge --auto --squash "$BRANCH" || true
