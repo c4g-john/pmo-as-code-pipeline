@@ -67,11 +67,17 @@ jobs:
           echo "$NEW" > .docassert-version
           git diff --stat
 
+      # The retrying install rides through PyPI CDN propagation lag — the JSON
+      # API can announce a version minutes before every index edge serves it.
+      - uses: c4g-john/docassert-action/install@v1
+        if: steps.v.outputs.latest != steps.v.outputs.current
+        with:
+          version: ${{ steps.v.outputs.latest }}
+
       - name: Verify this repo against the new version
         if: steps.v.outputs.latest != steps.v.outputs.current
         id: verify
         run: |
-          pip install --quiet "docassert==${{ steps.v.outputs.latest }}"
           set +e
           docassert validate 'documents/**/*.md' > /tmp/v.txt 2>&1; v=$?
           docassert consistency --no-semantic  > /tmp/c.txt 2>&1; c=$?
