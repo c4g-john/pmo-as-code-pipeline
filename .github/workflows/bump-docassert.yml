@@ -39,6 +39,26 @@ jobs:
         if: steps.v.outputs.latest == steps.v.outputs.current
         run: echo "already at ${{ steps.v.outputs.latest }}"
 
+
+      - name: Converge stale bump PRs
+        # A bump PR whose version the pin has already reached or passed is
+        # noise; the controller retires its own stale output.
+        env:
+          GH_TOKEN: ${{ secrets.BUMP_TOKEN || github.token }}
+          CURRENT: ${{ steps.v.outputs.current }}
+        run: |
+          gh pr list --state open --json number,headRefName \
+            -q '.[] | select(.headRefName | startswith("bump-docassert-")) | "\(.number) \(.headRefName)"' |
+          while read -r num ref; do
+            ver="${ref#bump-docassert-}"
+            newest=$(printf '%s\n%s\n' "$ver" "$CURRENT" | sort -V | tail -n1)
+            if [ "$ver" = "$CURRENT" ] || [ "$newest" = "$CURRENT" ]; then
+              gh pr close "$num" --delete-branch \
+                --comment "Superseded: the pin is already at $CURRENT (this PR targeted $ver)."
+              echo "closed stale bump PR #$num ($ver <= $CURRENT)"
+            fi
+          done
+
       - name: Bump the pin
         if: steps.v.outputs.latest != steps.v.outputs.current
         env:
@@ -80,4 +100,5 @@ jobs:
           git add -A && git commit -m "Bump docassert $old -> $new (auto)"
           git push -u origin "$branch"
           gh pr create --title "Bump docassert $old → $new" --body "$(printf 'Automated pin bump.\n\n**In-workflow verification against %s: %s**\n\n> Required checks do not auto-run on Actions-token PRs — verification ran in the [bump workflow](../actions/workflows/bump-docassert.yml) instead. Merge as admin, or close/reopen this PR to trigger the checks.' "$new" "${{ steps.verify.outputs.result }}")"
-          gh pr merge --auto --squash "$BRANCH" || true
+          gh pr merge --auto --squash "$branch" \
+            || gh pr merge --squash "$branch" || true
