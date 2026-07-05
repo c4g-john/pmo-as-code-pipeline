@@ -44,6 +44,9 @@ jobs:
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: _site
+          # Named per attempt: a rerun re-uploads, and deploy-pages refuses
+          # a run holding two artifacts with the same name.
+          name: github-pages-${{ github.run_attempt }}
       # Pages deployment creation is not retried by the action, and it
       # fails when sibling repos deploy in the same second (fleet-wide
       # merges land simultaneous pushes; ~20% of deploys collided). First
@@ -52,9 +55,13 @@ jobs:
       - id: deploy
         continue-on-error: true
         uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
+        with:
+          artifact_name: github-pages-${{ github.run_attempt }}
       - name: Desynchronize after a deploy collision
         if: steps.deploy.outcome == 'failure'
         run: sleep $((30 + RANDOM % 90))
       - id: deploy-again
         if: steps.deploy.outcome == 'failure'
         uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
+        with:
+          artifact_name: github-pages-${{ github.run_attempt }}
