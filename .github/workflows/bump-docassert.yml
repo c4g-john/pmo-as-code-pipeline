@@ -1,15 +1,15 @@
 name: bump docassert
 
-# Daily: if PyPI has a newer docassert than this repo pins, verify this repo's
-# documents against it (validate + consistency + registry) and open a bump PR
+# On release dispatch or manual request, verify this repo's documents against
+# a newer docassert (validate + consistency + registry) and open a bump PR
 # with the results.
 #
 # Note: PRs opened with the Actions token don't auto-run the required checks
 # (GitHub limitation) — the verification below runs inside this workflow
 # instead, and an admin merge (or close/reopen to trigger checks) lands it.
 on:
-  schedule:
-    - cron: "23 */2 * * *"
+  repository_dispatch:
+    types: [docassert-release]
   workflow_dispatch:
 
 permissions:
