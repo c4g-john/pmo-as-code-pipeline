@@ -7,12 +7,11 @@ name: status dashboard
 on:
   push:
     branches: [main]
+  issues:
+    types: [opened, edited, closed, reopened, labeled, unlabeled, assigned, unassigned]
+  repository_dispatch:
+    types: [status-update]
   workflow_dispatch:
-  # Level-triggered convergence: the dashboard reconciles to HEAD on a
-  # fixed cadence even if every push-triggered deploy failed. Offsets are
-  # staggered per repo so scheduled rebuilds can never collide.
-  schedule:
-    - cron: "51 */2 * * *"
 
 permissions:
   contents: read
