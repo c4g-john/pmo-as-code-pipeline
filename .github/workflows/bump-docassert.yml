@@ -2,11 +2,11 @@ name: bump docassert
 
 # On release dispatch or manual request, verify this repo's documents against
 # a newer docassert (validate + consistency + registry) and open a bump PR
-# with the results.
+# only after all three checks pass.
 #
 # Note: PRs opened with the Actions token don't auto-run the required checks
 # (GitHub limitation) — the verification below runs inside this workflow
-# instead, and an admin merge (or close/reopen to trigger checks) lands it.
+# instead. Failed verification stops the job before any bump PR is published.
 on:
   repository_dispatch:
     types: [docassert-release]
@@ -83,15 +83,17 @@ jobs:
           docassert consistency --no-semantic  > /tmp/c.txt 2>&1; c=$?
           docassert projects --check --out projects.yaml > /tmp/p.txt 2>&1; p=$?
           set -e
+          tail -n 3 /tmp/v.txt /tmp/c.txt /tmp/p.txt
           if [ $v -eq 0 ] && [ $c -eq 0 ] && [ $p -eq 0 ]; then
             echo "result=PASS" >> "$GITHUB_OUTPUT"
           else
             echo "result=FAIL (validate=$v consistency=$c registry=$p)" >> "$GITHUB_OUTPUT"
+            echo "::error::Bump verification failed; no bump PR will be published."
+            exit 1
           fi
-          tail -n 3 /tmp/v.txt /tmp/c.txt /tmp/p.txt
 
       - name: Open the bump PR
-        if: steps.v.outputs.latest != steps.v.outputs.current
+        if: success() && steps.v.outputs.latest != steps.v.outputs.current && steps.verify.outputs.result == 'PASS'
         env:
           GH_TOKEN: ${{ secrets.BUMP_TOKEN || github.token }}
         run: |
